@@ -322,5 +322,28 @@ for (const [suffix, vp] of [
   });
 }
 
+{
+  const page = await browser.newPage();
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto(BASE + '/#top', { waitUntil: 'networkidle' });
+  await page.locator('#nav-menu-btn').click();
+  await page.waitForSelector('#nav-mobile-overlay:not([hidden])');
+  await page.locator('#nav-menu-btn').focus();
+  await page.keyboard.press('Escape');
+  await page.waitForFunction(() => document.getElementById('nav-mobile-overlay')?.hidden);
+  const esc = await page.evaluate(() => {
+    const btn = document.getElementById('nav-menu-btn');
+    return {
+      expanded: btn?.getAttribute('aria-expanded'),
+      overlayHidden: document.getElementById('nav-mobile-overlay')?.hidden,
+      focusId: document.activeElement?.id,
+    };
+  });
+  if (esc.expanded !== 'false' || !esc.overlayHidden || esc.focusId !== 'nav-menu-btn') {
+    throw new Error(`menu Escape with focus on Close @ 390: ${JSON.stringify(esc)}`);
+  }
+  await page.close();
+}
+
 await browser.close();
 console.log(JSON.stringify({ layout, tilesFit, widgetWidths, verify: 'ok' }, null, 2));

@@ -11,7 +11,7 @@
   <meta property="og:url" content="https://convexa.today/">
   <meta property="og:title" content="Convexa — your whole options book, one curve">
   <meta property="og:description" content="An iPhone app for a QQQ options book fed from Interactive Brokers. Every figure on this page is a frozen demo book, not a live account.">
-  <meta property="og:image" content="/assets/og.webp">
+  <meta property="og:image" content="https://convexa.today/assets/og.webp">
   <meta property="og:image:type" content="image/webp">
   <meta property="og:image:width" content="1200">
   <meta property="og:image:height" content="630">
@@ -19,7 +19,7 @@
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="Convexa — your whole options book, one curve">
   <meta name="twitter:description" content="Frozen demo showcase of the Convexa iOS app for QQQ options.">
-  <meta name="twitter:image" content="/assets/og.webp">
+  <meta name="twitter:image" content="https://convexa.today/assets/og.webp">
   <link rel="icon" href="/favicon.ico" sizes="any">
   <link rel="icon" href="assets/favicon.png" type="image/png" sizes="64x64">
   <link rel="icon" href="assets/favicon-32.png" type="image/png" sizes="32x32">
@@ -505,12 +505,20 @@
       const links = overlay.querySelectorAll('.nav-mobile-links a');
       const mq = window.matchMedia('(max-width: 900px)');
 
+      function onDocKeydown(e) {
+        if (e.key !== 'Escape') return;
+        if (btn.getAttribute('aria-expanded') !== 'true') return;
+        closeMenu();
+        btn.focus();
+      }
+
       function closeMenu() {
         btn.setAttribute('aria-expanded', 'false');
         btn.setAttribute('aria-label', 'Open menu');
         if (label) label.textContent = 'Menu';
         overlay.hidden = true;
         document.documentElement.classList.remove('nav-menu-open');
+        document.removeEventListener('keydown', onDocKeydown);
       }
 
       function openMenu() {
@@ -520,6 +528,7 @@
         if (label) label.textContent = 'Close';
         overlay.hidden = false;
         document.documentElement.classList.add('nav-menu-open');
+        document.addEventListener('keydown', onDocKeydown);
         links[0]?.focus();
       }
 
@@ -532,12 +541,6 @@
       scrim?.addEventListener('click', closeMenu);
       links.forEach((a) => {
         a.addEventListener('click', closeMenu);
-      });
-      overlay.addEventListener('keydown', (e) => {
-        if (e.key === 'Escape') {
-          closeMenu();
-          btn.focus();
-        }
       });
       mq.addEventListener('change', () => {
         if (!mq.matches) closeMenu();
