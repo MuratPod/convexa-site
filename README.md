@@ -30,8 +30,14 @@ Convexa Cloudflare account:
 npx wrangler deploy
 ```
 
-`wrangler.jsonc` publishes `public/` as Workers static assets under the
-worker name `convexa-site`. Do not bind a custom domain in this step.
+`wrangler.jsonc` describes a Workers static-assets publish under the
+worker name `convexa-site`. Do not bind a custom domain in that step.
+
+The live preview at https://convexa-site.convexa.workers.dev/ is a new
+Worker `convexa-site` that serves the same `public/` files from the R2
+bucket `convexa-site` (Wrangler was not logged in on the build machine,
+and this Cloudflare session has no Pages API scope). No custom domain
+is attached.
 
 Every commit message should include `[skip ci]`.
 
