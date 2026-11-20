@@ -11,18 +11,20 @@
   <meta property="og:url" content="https://convexa.today/">
   <meta property="og:title" content="Convexa — your whole options book, one curve">
   <meta property="og:description" content="An iPhone app for a QQQ options book fed from Interactive Brokers. Every figure on this page is a frozen demo book, not a live account.">
-  <meta property="og:image" content="https://convexa.today/assets/og.webp">
+  <meta property="og:image" content="/assets/og.webp">
   <meta property="og:image:type" content="image/webp">
   <meta property="og:image:width" content="1200">
   <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="Convexa — your whole options book on iPhone. Demo NLV $64,624.16.">
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="Convexa — your whole options book, one curve">
   <meta name="twitter:description" content="Frozen demo showcase of the Convexa iOS app for QQQ options.">
-  <meta name="twitter:image" content="https://convexa.today/assets/og.webp">
+  <meta name="twitter:image" content="/assets/og.webp">
+  <link rel="icon" href="/favicon.ico" sizes="any">
   <link rel="icon" href="assets/favicon.png" type="image/png" sizes="64x64">
   <link rel="icon" href="assets/favicon-32.png" type="image/png" sizes="32x32">
   <link rel="apple-touch-icon" href="assets/favicon.png">
-  <link rel="stylesheet" href="styles.css?v=20261122l">
+  <link rel="stylesheet" href="styles.css?v=20261123a">
 </head>
 <body>
   <header class="site-nav">
@@ -31,11 +33,22 @@
         <span class="logo-mark" aria-hidden="true">C</span>
         Convexa
       </a>
+      <button type="button" class="nav-menu-btn" id="nav-menu-btn" aria-expanded="false" aria-controls="nav-mobile-panel" aria-haspopup="true">
+        <span class="nav-menu-btn-label">Menu</span>
+        <span class="nav-menu-icon" aria-hidden="true"></span>
+      </button>
       <nav class="nav-links" aria-label="Page sections">
         <a href="#screens">Screens</a>
         <a href="#how">How it’s calculated</a>
         <a href="#privacy">Privacy</a>
       </nav>
+      <div id="nav-mobile-panel" class="nav-mobile-panel" role="dialog" aria-modal="true" aria-labelledby="nav-menu-btn" hidden>
+        <nav class="nav-mobile-links" aria-label="Page sections">
+          <a href="#screens">Screens</a>
+          <a href="#how">How it’s calculated</a>
+          <a href="#privacy">Privacy</a>
+        </nav>
+      </div>
     </div>
   </header>
 
@@ -165,7 +178,7 @@
           <div class="shots-two-item">
             <figure class="device device--iphone-16-pro-max device--section device--section-dual">
               <div class="device-screen">
-                <img src="assets/02-now.webp" width="1320" height="2868" loading="lazy" alt="Analysis with the Today horizon: smile labelled whole book with 0DTE hedges included.">
+                <img src="assets/02-now.webp" width="1320" height="2868" loading="lazy" alt="Analysis with the Now horizon: smile labeled whole book with 0DTE hedges included.">
               </div>
               <picture>
                 <source type="image/webp" srcset="assets/bezels/iphone-16-pro-max-natural.webp">
@@ -177,7 +190,7 @@
           <div class="shots-two-item">
             <figure class="device device--iphone-16-pro-max device--section device--section-dual">
               <div class="device-screen">
-                <img src="assets/03-tomorrow.webp" width="1320" height="2868" loading="lazy" alt="Analysis with the Tomorrow horizon: smile labelled without options 20.11 after 0DTE drops off.">
+                <img src="assets/03-tomorrow.webp" width="1320" height="2868" loading="lazy" alt="Analysis with the Tomorrow horizon: smile labeled without options 20.11 after 0DTE drops off.">
               </div>
               <picture>
                 <source type="image/webp" srcset="assets/bezels/iphone-16-pro-max-natural.webp">
@@ -237,7 +250,7 @@
           <div class="shots-two-item">
             <figure class="device device--iphone-16-pro-max device--section device--section-dual">
               <div class="device-screen">
-                <img src="assets/04-virtual-leg.webp" width="1320" height="2868" loading="lazy" alt="Virtual leg card marked calculation only: horizon, call or put, strike ribbon, quantity at zero.">
+                <img src="assets/04-virtual-leg.webp" width="1320" height="2868" loading="lazy" alt="Virtual leg card marked calculation only: Tomorrow horizon, call 680, quantity 10, strike ribbon on the demo book.">
               </div>
               <picture>
                 <source type="image/webp" srcset="assets/bezels/iphone-16-pro-max-natural.webp">
@@ -322,7 +335,7 @@
         <div class="row-text">
           <div class="sec-num">07 · Dynamic Island &amp; widgets</div>
           <h2 id="h-island">Always in sight</h2>
-          <p>NLV and the day change in the Dynamic Island; the expanded view matches the Lock Screen card. Home Screen widgets ship in small and medium sizes on the same demo book.</p>
+          <p>NLV and the day change in the Dynamic Island; the expanded Island shows the same live P&amp;L, rounded for a glance; the Lock Screen strip shows it to the cent. Home Screen widgets ship in small and medium sizes on the same demo book.</p>
         </div>
         <div class="row-media">
           <div class="tiles">
@@ -411,7 +424,7 @@
                       <path d="M 12 14 Q 156 92 300 12" fill="none" stroke="#FFC34A" stroke-width="6" stroke-linecap="round"/>
                     </svg>
                   </div>
-                  <p class="watch-smile-big" aria-hidden="true">+$15,656</p>
+                  <p class="watch-smile-big" aria-hidden="true">+$15,656.08</p>
                   <p class="watch-smile-sub" aria-hidden="true">Realized vol at +3%</p>
                 </div>
               </div>
@@ -479,5 +492,47 @@
       <p class="footer-legal">Apple, iPhone, and Apple Watch are trademarks of Apple Inc.</p>
     </div>
   </footer>
+  <script>
+    (() => {
+      const btn = document.getElementById('nav-menu-btn');
+      const panel = document.getElementById('nav-mobile-panel');
+      if (!btn || !panel) return;
+      const links = panel.querySelectorAll('a');
+      const mq = window.matchMedia('(max-width: 900px)');
+
+      function closeMenu() {
+        btn.setAttribute('aria-expanded', 'false');
+        panel.hidden = true;
+        document.documentElement.classList.remove('nav-menu-open');
+      }
+
+      function openMenu() {
+        if (!mq.matches) return;
+        btn.setAttribute('aria-expanded', 'true');
+        panel.hidden = false;
+        document.documentElement.classList.add('nav-menu-open');
+        links[0]?.focus();
+      }
+
+      function toggleMenu() {
+        if (btn.getAttribute('aria-expanded') === 'true') closeMenu();
+        else openMenu();
+      }
+
+      btn.addEventListener('click', toggleMenu);
+      links.forEach((a) => {
+        a.addEventListener('click', closeMenu);
+      });
+      panel.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+          closeMenu();
+          btn.focus();
+        }
+      });
+      mq.addEventListener('change', () => {
+        if (!mq.matches) closeMenu();
+      });
+    })();
+  </script>
 </body>
 </html>

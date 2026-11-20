@@ -155,6 +155,118 @@ a {
   color: var(--tx);
 }
 
+.nav-menu-btn {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 8px 12px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--s1);
+  color: var(--tx);
+  font: inherit;
+  font-size: 18px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.nav-menu-btn:focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: 2px;
+}
+
+.nav-menu-icon {
+  width: 22px;
+  height: 2px;
+  background: currentColor;
+  position: relative;
+  display: block;
+}
+
+.nav-menu-icon::before,
+.nav-menu-icon::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  width: 22px;
+  height: 2px;
+  background: currentColor;
+}
+
+.nav-menu-icon::before {
+  top: -7px;
+}
+
+.nav-menu-icon::after {
+  top: 7px;
+}
+
+.nav-mobile-panel {
+  display: none;
+}
+
+html.nav-menu-open {
+  overflow: hidden;
+}
+
+@media (max-width: 900px) {
+  .nav-menu-btn {
+    display: inline-flex;
+    margin-left: auto;
+  }
+
+  .nav-links {
+    display: none;
+  }
+
+  .nav-mobile-panel:not([hidden]) {
+    display: block;
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 100%;
+    z-index: 110;
+    background: rgba(8, 9, 12, 0.98);
+    border-bottom: 1px solid #15161c;
+    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.45);
+    max-height: calc(100dvh - var(--nav-h));
+    overflow-y: auto;
+    overflow-x: clip;
+  }
+
+  .site-nav-inner {
+    position: relative;
+    flex-wrap: wrap;
+  }
+
+  .nav-mobile-links {
+    display: flex;
+    flex-direction: column;
+    padding: 12px clamp(16px, 5vw, 40px) 20px;
+    gap: 4px;
+  }
+
+  .nav-mobile-links a {
+    display: block;
+    padding: 14px 12px;
+    min-height: 44px;
+    font-size: 19px;
+    font-weight: 600;
+    color: var(--tx);
+    text-decoration: none;
+    border-radius: 12px;
+  }
+
+  .nav-mobile-links a:hover,
+  .nav-mobile-links a:focus-visible {
+    background: var(--s1);
+    color: var(--tx);
+  }
+}
+
 /* ——— Hero ——— */
 
 .hero {
@@ -607,13 +719,16 @@ a {
 
 .watch-smile-big {
   margin: 0;
-  font-size: calc(100cqw * 60 / 416);
+  font-size: calc(100cqw * 50 / 416);
   font-weight: 700;
-  letter-spacing: -0.03em;
+  letter-spacing: -0.05em;
   line-height: 1.05;
   font-variant-numeric: tabular-nums;
   color: var(--gold);
   flex-shrink: 0;
+  max-width: 100%;
+  overflow: visible;
+  white-space: nowrap;
 }
 
 .watch-smile-sub {
@@ -961,10 +1076,6 @@ a {
 
   .logo {
     font-size: 21px;
-  }
-
-  .nav-links {
-    display: none;
   }
 
   .hero-grid {

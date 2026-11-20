@@ -14,7 +14,7 @@ The same Home screen scrolled so the move table is fully on screen: both the +3%
 
 ## 02-analysis-smile-now.png
 
-Analysis with the Today (Now) horizon: the smile is labelled “whole book” and keeps the 20 November 0DTE hedges in the curve.
+Analysis with the Today (Now) horizon: the smile is labeled “whole book” and keeps the 20 November 0DTE hedges in the curve.
 
 ## 03-analysis-smile-tomorrow.png
 

@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <style>
+    @font-face {
+      font-family: "Inter";
+      font-style: normal;
+      font-weight: 400;
+      font-display: swap;
+      src: url("../public/assets/fonts/Inter-Regular.woff2") format("woff2");
+    }
+    @font-face {
+      font-family: "Inter";
+      font-style: normal;
+      font-weight: 800;
+      font-display: swap;
+      src: url("../public/assets/fonts/Inter-ExtraBold.woff2") format("woff2");
+    }
+    @font-face {
+      font-family: "Inter";
+      font-style: normal;
+      font-weight: 700;
+      font-display: swap;
+      src: url("../public/assets/fonts/Inter-Bold.woff2") format("woff2");
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      width: 1200px;
+      height: 630px;
+      overflow: hidden;
+      background: #08090c;
+      font-family: Inter, system-ui, sans-serif;
+      color: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 48px 56px;
+      gap: 32px;
+    }
+    body::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      background:
+        radial-gradient(520px 380px at 22% 55%, rgba(107, 163, 255, 0.2), transparent 70%),
+        radial-gradient(420px 300px at 78% 40%, rgba(255, 195, 74, 0.1), transparent 70%);
+    }
+    .og-copy {
+      position: relative;
+      z-index: 1;
+      max-width: 520px;
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      margin-bottom: 28px;
+    }
+    .logo-mark {
+      width: 52px;
+      height: 52px;
+      border-radius: 50%;
+      background: #6ba3ff;
+      display: grid;
+      place-items: center;
+      font-weight: 800;
+      font-size: 28px;
+    }
+    .wordmark {
+      font-size: 36px;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+    }
+    h1 {
+      font-size: 46px;
+      line-height: 1.08;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+    }
+    h1 em {
+      font-style: normal;
+      color: #ffc34a;
+    }
+    .demo {
+      margin-top: 20px;
+      font-size: 17px;
+      color: #c3c7d1;
+    }
+    .og-device {
+      position: relative;
+      z-index: 1;
+      flex: 0 0 auto;
+      width: 320px;
+      aspect-ratio: 1470 / 3000;
+    }
+  </style>
+  <link rel="stylesheet" href="../public/styles.css">
+  <style>
+    .og-device.device {
+      --device-width: 320px;
+      display: inline-block;
+      vertical-align: top;
+    }
+  </style>
+</head>
+<body>
+  <div class="og-copy">
+    <div class="brand">
+      <span class="logo-mark" aria-hidden="true">C</span>
+      <span class="wordmark">Convexa</span>
+    </div>
+    <h1>Your whole options book.<br><em>One curve.</em><br>Every move.</h1>
+    <p class="demo">Demo book · NLV $64,624.16</p>
+  </div>
+  <figure class="device device--iphone-16-pro-max og-device">
+    <div class="device-screen">
+      <img src="../screens/01-home-portfolio.png" width="1320" height="2868" alt="">
+    </div>
+    <picture>
+      <source type="image/webp" srcset="../public/assets/bezels/iphone-16-pro-max-natural.webp">
+      <img class="device-bezel" src="../public/assets/bezels/iphone-16-pro-max-natural.png" width="1470" height="3000" alt="">
+    </picture>
+  </figure>
+</body>
+</html>
