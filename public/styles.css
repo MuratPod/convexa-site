@@ -365,126 +365,21 @@ a {
   --device-width: 220px;
 }
 
-.device-screen .lock-face {
-  position: relative;
-  width: 100%;
-  height: 100%;
-  min-height: 100%;
-  overflow: hidden;
-  container-type: inline-size;
-  container-name: lockface;
-  background: #0b1528;
-}
-
-.lock-face-wall {
-  position: absolute;
-  inset: 0;
-  background:
-    linear-gradient(180deg, #1e3558 0%, #14263f 22%, #0c1628 52%, #070b14 100%);
-}
-
-.lock-time {
-  position: absolute;
-  left: 0;
-  right: 0;
-  top: 15%;
+/* Two-lines Live Activity strip close-up (1194×360 @3x → 398×120 pt), no bezel */
+.lock-card-closeup {
   margin: 0;
-  text-align: center;
-  font-size: clamp(48px, 17cqi, 92px);
-  font-weight: 700;
-  letter-spacing: -0.03em;
-  color: #fff;
-  text-shadow: 0 2px 24px rgba(0, 0, 0, 0.35);
-}
-
-.lock-date {
-  position: absolute;
-  left: 0;
-  right: 0;
-  top: 26%;
-  margin: 0;
-  text-align: center;
-  font-size: clamp(16px, 5.2cqi, 26px);
-  font-weight: 500;
-  color: rgba(255, 255, 255, 0.92);
-}
-
-.lock-la-card {
-  position: absolute;
-  left: 50%;
-  transform: translateX(-50%);
-  bottom: 7.2cqi;
-  width: 91.5cqi;
-  max-width: calc(100% - 8.5cqi);
-  height: auto;
   display: block;
-  border-radius: 4.8cqi;
-  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45);
+  width: 100%;
+  max-width: 398px;
+  line-height: 0;
 }
 
-.la-row-primary {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: 0.35em 0.55em;
-  line-height: 1.2;
-}
-
-.la-nlv {
-  font-size: clamp(20px, 7.1cqi, 26px);
-  font-weight: 700;
-  color: #fff;
-  letter-spacing: -0.02em;
-}
-
-.la-change,
-.la-pct {
-  font-size: clamp(13px, 4.4cqi, 17px);
-  font-weight: 600;
-}
-
-.la-fresh {
-  margin-left: auto;
-  font-size: clamp(13px, 4cqi, 16px);
-  font-weight: 700;
-  color: var(--gold-muted);
-}
-
-.la-row-secondary {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5em 0.85em;
-  margin-top: 0.55em;
-  font-size: clamp(13px, 4.15cqi, 16px);
-  font-weight: 600;
-  line-height: 1.35;
-  color: rgba(255, 255, 255, 0.92);
-}
-
-.la-tick .sym {
-  color: var(--blue);
-  font-weight: 700;
-}
-
-.live-activity .up {
-  color: var(--green);
-}
-
-.live-activity .down {
-  color: var(--red);
-}
-
-.lock-home-bar {
-  position: absolute;
-  left: 50%;
-  transform: translateX(-50%);
-  bottom: 2.2cqi;
-  width: 32cqi;
-  max-width: 120px;
-  height: 0.55cqi;
-  min-height: 4px;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.88);
+.lock-card-closeup img {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-width: 398px;
+  margin: 0 auto;
 }
 
 .device-cap {
