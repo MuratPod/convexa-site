@@ -135,13 +135,14 @@ h1 em { font-style: normal; color: var(--gold); }
 }
 .island-float {
   position: absolute;
-  right: -4%;
-  top: 8%;
-  width: min(300px, 70%);
-  filter: drop-shadow(0 18px 40px rgba(0,0,0,0.5));
-  transform: rotate(6deg);
+  right: 0;
+  top: 12%;
+  width: min(440px, 92%);
+  filter: drop-shadow(0 18px 40px rgba(0,0,0,0.55));
+  transform: rotate(4deg);
+  z-index: 2;
 }
-.island-float img { width: 100%; }
+.island-float img { width: 100%; height: auto; }
 
 /* Sections */
 .section { padding: 88px 0; border-top: 1px solid var(--line); }
@@ -172,7 +173,7 @@ h1 em { font-style: normal; color: var(--gold); }
 .shot-media { display: flex; justify-content: center; }
 .shot .phone { width: min(340px, 100%); }
 .wide { width: min(100%, 520px); }
-.wide img { width: 100%; border-radius: 24px; }
+.wide img { width: 100%; height: auto; border-radius: 0; background: transparent; }
 
 .pair {
   display: grid;
