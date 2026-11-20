@@ -47,7 +47,7 @@
   --wrap: 1240px;
   --hero-wrap: 1400px;
   --nav-h: 80px;
-  --widget-unit: 170px;
+  --widget-unit: 200px;
   --widget-gap: 16px;
 }
 
@@ -399,6 +399,10 @@ a {
 
 /* watchOS mock: laid out at 416×496 (@2x) then scaled to the bezel cutout. */
 .device--watch-s10 .device-screen {
+  position: absolute;
+  z-index: 0;
+  inset: var(--inset-top) var(--inset-right) var(--inset-bottom) var(--inset-left);
+  border-radius: var(--screen-radius);
   container-type: size;
   container-name: watchscreen;
   display: flex;
@@ -575,14 +579,19 @@ a {
   justify-content: center;
   padding: 0;
   min-height: 0;
+  width: 100%;
+  max-width: 100%;
+  overflow: hidden;
+  box-sizing: border-box;
 }
 
 .watch-smile-chart {
   display: block;
-  width: calc(100cqw * 304 / 416);
+  width: 100%;
   max-width: 100%;
   height: auto;
   max-height: 100%;
+  overflow: hidden;
 }
 
 .watch-smile-big {
@@ -904,7 +913,7 @@ a {
 
 @media (max-width: 900px) {
   :root {
-    --widget-unit: 150px;
+    --widget-unit: min(150px, 44vw);
   }
 
   .tile-row {
