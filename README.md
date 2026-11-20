@@ -17,9 +17,11 @@ DNS, Cloudflare Access, the existing `convexa-web` worker, and the
 npx wrangler dev
 ```
 
-The site lives in `public/`: `index.html`, `styles.css`, and optimized
-WebP assets. Source device screenshots (PNG) used to build those assets
-are kept under `screens/` for reference.
+The site lives in `public/`: `index.html`, `styles.css`, self-hosted
+Inter fonts under `public/assets/fonts/`, and optimized WebP screenshots
+under `public/assets/`. Source device PNGs used to build those assets
+are kept under `screens/` for reference (swap a PNG, regenerate WebP,
+commit).
 
 ## Deploy
 
