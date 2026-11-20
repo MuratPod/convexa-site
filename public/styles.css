@@ -358,7 +358,7 @@ a {
 }
 
 .device--hero-watch {
-  --device-width: 218px;
+  --device-width: 204px;
 }
 
 .device--section-watch {
@@ -508,7 +508,6 @@ a {
 }
 
 .watch-ui-canvas {
-  --wu: calc(100cqw / 416);
   width: 100%;
   height: 100%;
   box-sizing: border-box;
@@ -525,59 +524,62 @@ a {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
-  gap: calc(var(--wu) * 12px);
-  padding: calc(var(--wu) * 42px) calc(var(--wu) * 88px) 0 calc(var(--wu) * 52px);
+  gap: 2.88%;
+  padding: 9.3% 20.7% 0 13.46%;
   flex-shrink: 0;
 }
 
 .watch-pill {
   display: inline-block;
-  padding: calc(var(--wu) * 3px) calc(var(--wu) * 10px);
+  padding: 0.2em 0.65em;
   border-radius: 999px;
   background: rgba(255, 195, 74, 0.2);
   color: var(--gold);
-  font-size: calc(var(--wu) * 13px);
+  font-size: calc(100cqw * 13 / 416);
   font-weight: 700;
   line-height: 1.2;
   flex: 0 0 auto;
 }
 
 .watch-top-time {
-  font-size: calc(var(--wu) * 15px);
+  font-size: calc(100cqw * 15 / 416);
   font-weight: 600;
   font-variant-numeric: tabular-nums;
   letter-spacing: 0.02em;
   white-space: nowrap;
   flex: 0 0 auto;
   color: rgba(255, 255, 255, 0.92);
+  line-height: 1.2;
 }
 
 .watch-smile-title {
   margin: 0;
-  font-size: calc(var(--wu) * 16px);
+  font-size: calc(100cqw * 16 / 416);
   font-weight: 700;
   flex: 1 1 auto;
   min-width: 0;
   white-space: nowrap;
+  line-height: 1.2;
 }
 
 .watch-main-body {
-  padding: calc(var(--wu) * 10px) calc(var(--wu) * 52px) 0;
+  padding: 1.6% 13.46% 0;
   flex-shrink: 0;
 }
 
 .watch-nlv {
   margin: 0;
-  font-size: calc(100cqw / 416 * 33px);
+  font-size: calc(100cqw * 33 / 416);
   font-weight: 700;
-  letter-spacing: -0.035em;
-  line-height: 1.04;
+  letter-spacing: -0.04em;
+  line-height: 1.03;
   font-variant-numeric: tabular-nums;
+  font-family: ui-rounded, "SF Pro Rounded", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
 }
 
 .watch-day {
-  margin: calc(var(--wu) * 8px) 0 0;
-  font-size: calc(var(--wu) * 15px);
+  margin: 1.2% 0 0;
+  font-size: calc(100cqw * 14 / 416);
   font-weight: 600;
   line-height: 1.2;
   white-space: nowrap;
@@ -586,10 +588,10 @@ a {
 
 .watch-ticks {
   margin-top: auto;
-  padding: calc(var(--wu) * 14px) calc(var(--wu) * 52px) calc(var(--wu) * 50px);
+  padding: 2% 13.46% 14.2%;
   display: flex;
   flex-direction: column;
-  gap: calc(var(--wu) * 8px);
+  gap: 1.7%;
   flex-shrink: 0;
 }
 
@@ -597,11 +599,11 @@ a {
   display: flex;
   justify-content: space-between;
   align-items: baseline;
-  gap: calc(var(--wu) * 12px);
+  gap: 2%;
   margin: 0;
-  font-size: calc(var(--wu) * 14px);
+  font-size: calc(100cqw * 14 / 416);
   font-weight: 600;
-  line-height: 1.25;
+  line-height: 1.2;
   font-variant-numeric: tabular-nums;
   color: rgba(255, 255, 255, 0.94);
 }
@@ -609,7 +611,7 @@ a {
 .watch-tick-row .sym {
   color: var(--blue);
   font-weight: 700;
-  flex: 0 0 calc(var(--wu) * 44px);
+  flex: 0 0 9.6%;
 }
 
 .tick-nums {
@@ -627,24 +629,24 @@ a {
 }
 
 .watch-ui--smile .watch-smile-chart-wrap {
-  flex: 1 1 auto;
+  flex: 1 1 0;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: calc(var(--wu) * 10px) calc(var(--wu) * 52px) 0;
-  min-height: calc(var(--wu) * 180px);
+  padding: 0.6% 13.46% 0;
+  min-height: 44%;
 }
 
 .watch-smile-chart {
   display: block;
-  width: calc(var(--wu) * 312px);
-  max-width: calc(100% - var(--wu) * 8px);
+  width: 100%;
   height: auto;
+  max-height: 100%;
 }
 
 .watch-smile-big {
-  margin: calc(var(--wu) * 6px) calc(var(--wu) * 52px) 0;
-  font-size: calc(var(--wu) * 34px);
+  margin: 0.8% 13.46% 0;
+  font-size: calc(100cqw * 34 / 416);
   font-weight: 700;
   letter-spacing: -0.03em;
   line-height: 1.05;
@@ -654,9 +656,9 @@ a {
 }
 
 .watch-smile-sub {
-  margin: calc(var(--wu) * 4px) calc(var(--wu) * 52px) 0;
-  padding-bottom: calc(var(--wu) * 44px);
-  font-size: calc(var(--wu) * 14px);
+  margin: 0.4% 13.46% 0;
+  padding-bottom: 10.5%;
+  font-size: calc(100cqw * 14 / 416);
   font-weight: 600;
   color: var(--tx2);
   flex-shrink: 0;
