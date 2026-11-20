@@ -230,7 +230,17 @@ html.nav-menu-open body {
   overflow: hidden;
 }
 
+html.nav-menu-open .site-nav {
+  background: #0b0c10;
+  border-bottom: 1px solid #1e2028;
+  backdrop-filter: none;
+}
+
 @media (max-width: 900px) {
+  :root {
+    --nav-h: 64px;
+  }
+
   .nav-menu-btn {
     display: inline-flex;
     margin-left: auto;
@@ -268,7 +278,6 @@ html.nav-menu-open body {
     inset: 0;
     z-index: 1;
     background: #0b0c10;
-    border-bottom: 1px solid #15161c;
     min-height: 100%;
     overflow-y: auto;
     overflow-x: clip;
@@ -293,10 +302,6 @@ html.nav-menu-open body {
     color: #ffffff;
     text-decoration: none;
     border-bottom: 1px solid #1e2028;
-  }
-
-  .nav-mobile-links a:first-child {
-    border-top: 1px solid #1e2028;
   }
 
   .nav-mobile-links a:hover,
@@ -1107,10 +1112,6 @@ html.nav-menu-open body {
 
   body {
     font-size: 19px;
-  }
-
-  .site-nav-inner {
-    min-height: 64px;
   }
 
   .logo {
