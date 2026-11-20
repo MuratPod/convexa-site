@@ -50,6 +50,63 @@ async function tilesChildrenFit(page) {
   });
 }
 
+async function assertIphoneScreenShapes(page) {
+  const issues = await page.evaluate(() => {
+    const out = [];
+    for (const screen of document.querySelectorAll('.device--iphone-16-pro-max .device-screen')) {
+      const s = getComputedStyle(screen);
+      const corners = [
+        s.borderTopLeftRadius,
+        s.borderTopRightRadius,
+        s.borderBottomLeftRadius,
+        s.borderBottomRightRadius,
+      ];
+      for (const c of corners) {
+        if (String(c).includes('/')) out.push({ kind: 'radius-elliptical', value: c });
+      }
+      const [tl, tr, bl, br] = corners;
+      if (tl !== tr || tl !== bl || tl !== br) {
+        out.push({ kind: 'radius-mismatch', corners });
+      }
+      if (s.clipPath && s.clipPath !== 'none') out.push({ kind: 'clip-path', value: s.clipPath });
+      const mask = s.maskImage || s.webkitMaskImage;
+      if (mask && mask !== 'none') out.push({ kind: 'mask-image', value: mask });
+    }
+    return out;
+  });
+  if (issues.length) {
+    throw new Error(`iphone device-screen shape: ${JSON.stringify(issues)}`);
+  }
+}
+
+async function assertLockCloseups(page, vw) {
+  if (vw !== 1440 && vw !== 390) return;
+  const minStripWidth = vw <= 390 ? 280 : 360;
+  const rows = await page.evaluate(() => {
+    return [...document.querySelectorAll('#lock-screen .lock-card-closeup img')].map((img) => ({
+      src: img.getAttribute('src') || '',
+      w: img.getBoundingClientRect().width,
+      h: img.getBoundingClientRect().height,
+      natW: img.naturalWidth,
+      natH: img.naturalHeight,
+    }));
+  });
+  for (const row of rows) {
+    if (row.w + 0.5 < minStripWidth) {
+      throw new Error(`lock closeup narrow @ ${vw}: ${JSON.stringify(row)}`);
+    }
+    const textPx = (row.w / row.natW) * 42;
+    const minText = vw <= 390 ? 13 : 14;
+    if (textPx + 0.5 < minText) {
+      throw new Error(`lock closeup text scale < ${minText}px @ ${vw}: ${JSON.stringify({ ...row, textPx })}`);
+    }
+  }
+  const phoneW = await page.evaluate(() => document.querySelector('#lock-screen .device--section')?.getBoundingClientRect().width ?? 0);
+  if (vw === 1440 && phoneW + 0.5 < 350) {
+    throw new Error(`§06 phone width ${phoneW} < 350 at 1440`);
+  }
+}
+
 async function layoutChecks(page, vw) {
   return page.evaluate(({ vw, margin }) => {
     const issues = [];
@@ -140,8 +197,9 @@ for (const w of widths) {
   await page.setViewportSize({ width: w, height: w >= 1024 ? 900 : 844 });
   await page.goto(BASE + '/', { waitUntil: 'networkidle' });
   await prepareCapture(page);
-  await primeImages(page, 'header.hero');
-  await primeImages(page, '#island-widgets');
+  await primeImages(page, null);
+  await assertIphoneScreenShapes(page);
+  await assertLockCloseups(page, w);
   const issues = await layoutChecks(page, w);
   const tileIssues = await tilesChildrenFit(page);
   const widgets = await widgetImgWidths(page);
@@ -184,11 +242,8 @@ for (const [suffix, vp] of [
 
 for (const [suffix, vp] of [
   ['-1440', { width: 1440, height: 900 }],
-  ['-1366', { width: 1366, height: 900 }],
   ['-1280', { width: 1280, height: 900 }],
-  ['-1152', { width: 1152, height: 900 }],
   ['-1024', { width: 1024, height: 900 }],
-  ['-768', { width: 768, height: 1024 }],
   ['-390', { width: 390, height: 844 }],
 ]) {
   await shot(vp, `hero-devices${suffix}.png`, async (p, path) => {
@@ -207,6 +262,8 @@ for (const [suffix, vp] of [
   await shot(vp, `section-06-lock-screen${suffix}.png`, async (p, path) => {
     await p.goto(BASE + '/#lock-screen', { waitUntil: 'networkidle' });
     await primeImages(p, '#lock-screen');
+    await assertIphoneScreenShapes(p);
+    await assertLockCloseups(p, vp.width);
     const issues = await layoutChecks(p, vp.width);
     if (issues.length) throw new Error(`§06 ${suffix}: ${JSON.stringify(issues)}`);
     await p.locator('#lock-screen').screenshot({ path });

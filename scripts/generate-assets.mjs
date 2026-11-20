@@ -34,7 +34,20 @@ for (const [src, dest] of map) {
   console.log(`${dest} ${meta.width}x${meta.height}`);
 }
 
-const keep = new Set([...map.map(([, d]) => d), 'og.webp', 'favicon.png', 'favicon-32.png', 'og.png']);
+const compactCard = {
+  left: 63,
+  top: 2685,
+  width: 1194,
+  height: 135,
+};
+const compactCardOut = join(outDir, '08-lock-compact-card-3x.webp');
+await sharp(join(screensDir, '08-lock-compact-398.png'))
+  .extract(compactCard)
+  .webp({ quality })
+  .toFile(compactCardOut);
+console.log(`08-lock-compact-card-3x.webp ${compactCard.width}x${compactCard.height}`);
+
+const keep = new Set([...map.map(([, d]) => d), '08-lock-compact-card-3x.webp', 'og.webp', 'favicon.png', 'favicon-32.png', 'og.png']);
 for (const f of readdirSync(outDir)) {
   if (f.endsWith('.webp') && !keep.has(f) && !f.startsWith('.')) {
     unlinkSync(join(outDir, f));

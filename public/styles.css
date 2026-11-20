@@ -304,8 +304,10 @@ a {
   z-index: 0;
   overflow: hidden;
   background: #000;
-  border-radius: var(--screen-radius, 13%);
+  border-radius: var(--screen-radius);
   inset: var(--inset-top, 1.22%) var(--inset-right, 2.5%) var(--inset-bottom, 1.22%) var(--inset-left, 2.5%);
+  clip-path: none;
+  mask: none;
 }
 
 .device--iphone-16-pro-max .device-screen > img {
@@ -336,7 +338,7 @@ a {
   --inset-right: 5.102%;
   --inset-bottom: 2.2%;
   --inset-left: 5.102%;
-  --screen-radius: 17.42%;
+  --screen-radius: calc(var(--device-width, 368px) * 0.1742);
 }
 
 .device--hero-home {
@@ -373,13 +375,17 @@ a {
   --device-width: 220px;
 }
 
-/* Two-lines Live Activity strip close-up (1194×360 @3x → 398×120 pt), no bezel */
+/* Live Activity strip close-ups (1194px @3x → 398 pt wide), no bezel */
 .lock-card-closeup {
   margin: 0;
   display: block;
-  width: 100%;
+  width: min(398px, calc(100vw - 16px));
   max-width: 398px;
   line-height: 0;
+  background: #0a0b0e;
+  border: 1px solid #181a21;
+  border-radius: 18px;
+  overflow: hidden;
 }
 
 .lock-card-closeup img {
@@ -387,7 +393,9 @@ a {
   width: 100%;
   height: auto;
   max-width: 398px;
-  margin: 0 auto;
+  margin: 0;
+  border-radius: 0;
+  background: #000;
 }
 
 .device-cap {
@@ -775,8 +783,11 @@ a {
   --device-width: 300px;
 }
 
-#lock-screen .shots-two .shots-lock-phone {
-  --device-width: 304px;
+.shots-two-item--lock-stack {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
 }
 
 .shots-two .shot-label {
