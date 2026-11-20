@@ -409,17 +409,16 @@ a {
   color: rgba(255, 255, 255, 0.92);
 }
 
-.live-activity {
+.lock-la-card {
   position: absolute;
-  left: 4.25cqi;
-  right: 4.25cqi;
+  left: 50%;
+  transform: translateX(-50%);
   bottom: 7.2cqi;
-  width: auto;
-  max-width: none;
-  padding: 3.2cqi 3.6cqi;
+  width: 91.5cqi;
+  max-width: calc(100% - 8.5cqi);
+  height: auto;
+  display: block;
   border-radius: 4.8cqi;
-  background: rgba(18, 18, 22, 0.94);
-  border: 1px solid rgba(255, 255, 255, 0.08);
   box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45);
 }
 
@@ -557,16 +556,16 @@ a {
   margin-inline: calc(100cqw * 38 / 416);
 }
 
-.watch-pill {
-  display: inline-block;
-  padding: calc(100cqh * 4 / 496) calc(100cqw * 14 / 416);
-  border-radius: 999px;
-  background: rgba(255, 195, 74, 0.2);
-  color: var(--gold);
+.watch-fresh {
   font-size: calc(100cqw * 24 / 416);
   font-weight: 700;
   line-height: 1.1;
   flex: 0 0 auto;
+  color: var(--gold);
+}
+
+.watch-fresh--stale {
+  color: var(--red);
 }
 
 .watch-top-time {
@@ -697,9 +696,9 @@ a {
 
 .watch-smile-sub {
   margin: 0;
-  font-size: calc(100cqw * 24 / 416);
+  font-size: calc(100cqw * 28 / 416);
   font-weight: 600;
-  color: var(--tx2);
+  color: #e8ecf3;
   flex-shrink: 0;
 }
 
@@ -879,6 +878,10 @@ a {
   gap: 28px;
   justify-items: center;
   width: 100%;
+  background: #08090c;
+  padding: 28px 20px 32px;
+  border-radius: 20px;
+  border: 1px solid #15161c;
 }
 
 .tile-row {
@@ -889,28 +892,38 @@ a {
   gap: 20px;
 }
 
+.tiles > img,
 .tile-row img {
   border-radius: 0;
   width: auto;
   max-width: 100%;
+  height: auto;
 }
 
 .tile-island-compact {
-  width: min(300px, 80vw);
+  width: min(420px, 100%);
+  max-width: 840px;
+  height: auto;
 }
 
 .tile-island-expanded {
-  width: min(520px, 95vw);
+  width: min(603px, 100%);
+  max-width: 1206px;
+  height: auto;
 }
 
 .tile-widget-small {
-  width: min(200px, 42vw);
-  border-radius: 28px;
+  width: 255px;
+  max-width: min(255px, 58vw);
+  height: auto;
+  border-radius: 32px;
 }
 
 .tile-widget-medium {
-  width: min(420px, 90vw);
-  border-radius: 28px;
+  width: 546px;
+  max-width: min(546px, calc(100vw - 32px));
+  height: auto;
+  border-radius: 32px;
 }
 
 /* ——— How / Privacy ——— */
@@ -1047,7 +1060,18 @@ a {
   }
 
   .device--hero-watch {
-    --device-width: 196px;
+    --device-width: min(234px, 60vw);
+  }
+
+  .device-col--watch {
+    width: 100%;
+    max-width: 100%;
+    justify-content: center;
+    align-items: center;
+  }
+
+  .watch-shots .device--section-watch {
+    --device-width: min(234px, 60vw);
   }
 
   .section {
@@ -1074,6 +1098,18 @@ a {
 
   .grid-three {
     grid-template-columns: 1fr;
+  }
+
+  .tiles {
+    padding-inline: 14px;
+    box-sizing: border-box;
+    max-width: 100%;
+  }
+
+  .tile-island-compact,
+  .tile-island-expanded,
+  .tile-widget-medium {
+    max-width: calc(100vw - 32px);
   }
 }
 

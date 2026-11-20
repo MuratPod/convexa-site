@@ -2,7 +2,7 @@
 
 All figures use the frozen demo book (net liquidation $64,624.16, day +$2,671.95) dated 20 November 2026. They are not a live account. App screens were captured full-bleed on the iPhone 16 Pro Max simulator (440×956 pt) with the status bar set to 9:41. Lock, Dynamic Island, and widget figures are composed renderings of the official demo views.
 
-Optimized WebP copies used on the site live in `public/assets/`.
+Optimized WebP copies used on the site live in `public/assets/` (regenerate with `node scripts/generate-assets.mjs`).
 
 ## 01-home-portfolio.png
 
