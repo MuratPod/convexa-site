@@ -159,7 +159,8 @@ a {
 
 .hero {
   position: relative;
-  overflow: hidden;
+  overflow-x: clip;
+  overflow-y: visible;
   padding-bottom: 40px;
 }
 
@@ -794,6 +795,7 @@ a {
   justify-items: center;
   width: 100%;
   max-width: 100%;
+  min-width: 0;
   box-sizing: border-box;
   container-type: inline-size;
   container-name: tilestray;
@@ -801,7 +803,8 @@ a {
   padding: 28px 24px 32px;
   border-radius: 20px;
   border: 1px solid #15161c;
-  overflow: hidden;
+  overflow-x: clip;
+  overflow-y: visible;
 }
 
 .tile-row {
@@ -812,6 +815,7 @@ a {
   gap: var(--widget-gap);
   width: 100%;
   max-width: 100%;
+  min-width: 0;
   box-sizing: border-box;
   /* 100cqw = .tiles tray; omit extra 48px (padding already excluded from cqw). */
   --widget-unit: min(200px, calc((100cqw - var(--widget-gap)) / 3));
@@ -984,11 +988,11 @@ a {
   }
 
   .device--hero-home {
-    --device-width: 336px;
+    --device-width: min(336px, calc(100vw - 32px));
   }
 
   .device--hero-lock {
-    --device-width: 312px;
+    --device-width: min(312px, calc(100vw - 32px));
   }
 
   .device--hero-watch {
@@ -1060,14 +1064,74 @@ a {
     grid-template-columns: 1.08fr 0.98fr 0.52fr;
     align-items: end;
     justify-items: center;
-    gap: 0 14px;
+    gap: 0 clamp(10px, 1.2vw, 14px);
     flex-wrap: nowrap;
     justify-content: stretch;
     width: 100%;
+    min-width: 0;
+    max-width: 100%;
   }
 
   .device-col--watch {
     align-self: end;
     padding-bottom: 2px;
+  }
+}
+
+/* Intermediate desktop: stage too narrow for 3-up fixed bezels */
+@media (min-width: 901px) and (max-width: 1380px) {
+  .hero-stage {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-rows: auto auto;
+    row-gap: clamp(16px, 2vw, 24px);
+    column-gap: clamp(12px, 2vw, 20px);
+    justify-items: center;
+  }
+
+  .device-col--watch {
+    grid-column: 1 / -1;
+    justify-self: center;
+  }
+}
+
+@media (min-width: 901px) and (max-width: 1100px) {
+  .hero-grid {
+    grid-template-columns: minmax(0, 1fr);
+    gap: clamp(28px, 4vw, 40px);
+    align-items: center;
+  }
+
+  .hero-copy {
+    max-width: 640px;
+    margin-inline: auto;
+    text-align: center;
+  }
+
+  .lead {
+    margin-inline: auto;
+  }
+
+  .chips {
+    justify-content: center;
+  }
+
+  .hero-stage {
+    width: 100%;
+    max-width: min(920px, 100%);
+    margin-inline: auto;
+  }
+}
+
+@media (min-width: 901px) and (max-width: 1240px) {
+  .device--hero-home {
+    --device-width: clamp(220px, 28vw, 296px);
+  }
+
+  .device--hero-lock {
+    --device-width: clamp(204px, 25.5vw, 272px);
+  }
+
+  .device--hero-watch {
+    --device-width: clamp(168px, 20vw, 218px);
   }
 }

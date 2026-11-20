@@ -5,7 +5,8 @@ import { join } from 'path';
 const BASE = process.env.BASE_URL || 'http://127.0.0.1:8787';
 const OUT = '/opt/cursor/artifacts';
 mkdirSync(OUT, { recursive: true });
-const widths = [1440, 1280, 1024, 390, 360];
+const widths = [1440, 1366, 1280, 1152, 1024, 900, 768, 390, 360];
+const MARGIN = 8;
 
 function minWidgetWidthForViewport(w) {
   return w <= 390 ? 120 : 140;
@@ -49,6 +50,62 @@ async function tilesChildrenFit(page) {
   });
 }
 
+async function layoutChecks(page, vw) {
+  return page.evaluate(({ vw, margin }) => {
+    const issues = [];
+    const doc = document.documentElement;
+    const headerTop = document.getElementById('top');
+    if (doc.scrollWidth - doc.clientWidth > 1) {
+      issues.push({ kind: 'doc-scroll', px: doc.scrollWidth - doc.clientWidth, sw: doc.scrollWidth, cw: doc.clientWidth });
+    }
+    if (headerTop && headerTop.scrollWidth - headerTop.clientWidth > 1) {
+      issues.push({
+        kind: 'hero-scroll',
+        px: headerTop.scrollWidth - headerTop.clientWidth,
+        sw: headerTop.scrollWidth,
+        cw: headerTop.clientWidth,
+      });
+    }
+    const heroFrames = document.querySelectorAll('header.hero .device');
+    for (const el of heroFrames) {
+      const r = el.getBoundingClientRect();
+      if (r.width < 1) continue;
+      if (r.right > vw - margin + 0.5) {
+        issues.push({ kind: 'hero-device-right', cls: el.className.slice(0, 60), px: r.right - (vw - margin) });
+      }
+      if (r.left < margin - 0.5) {
+        issues.push({ kind: 'hero-device-left', cls: el.className.slice(0, 60), px: margin - r.left });
+      }
+    }
+    const tiles = document.querySelector('#island-widgets .tiles');
+    if (tiles) {
+      if (tiles.scrollWidth - tiles.clientWidth > 1) {
+        issues.push({
+          kind: 'tiles-scroll',
+          px: tiles.scrollWidth - tiles.clientWidth,
+          sw: tiles.scrollWidth,
+          cw: tiles.clientWidth,
+        });
+      }
+      const tilesRect = tiles.getBoundingClientRect();
+      for (const child of tiles.children) {
+        const r = child.getBoundingClientRect();
+        if (r.width < 1) continue;
+        if (r.right > vw - margin + 0.5) {
+          issues.push({ kind: 'tiles-child-right', cls: String(child.className).slice(0, 40), px: r.right - (vw - margin) });
+        }
+        if (r.left < margin - 0.5) {
+          issues.push({ kind: 'tiles-child-left', cls: String(child.className).slice(0, 40), px: margin - r.left });
+        }
+      }
+      if (tilesRect.right > vw - margin + 0.5) {
+        issues.push({ kind: 'tiles-box-right', px: tilesRect.right - (vw - margin) });
+      }
+    }
+    return issues;
+  }, { vw, margin: MARGIN });
+}
+
 async function prepareCapture(page) {
   await page.addStyleTag({
     content: '.site-nav { position: static !important; top: auto !important; }',
@@ -75,33 +132,31 @@ async function primeImages(page, selector) {
 }
 
 const browser = await chromium.launch();
-const overflow = {};
+const layout = {};
 const tilesFit = {};
 const widgetWidths = {};
 for (const w of widths) {
   const page = await browser.newPage();
   await page.setViewportSize({ width: w, height: w >= 1024 ? 900 : 844 });
-  await page.goto(BASE + '/#island-widgets', { waitUntil: 'networkidle' });
+  await page.goto(BASE + '/', { waitUntil: 'networkidle' });
   await prepareCapture(page);
+  await primeImages(page, 'header.hero');
   await primeImages(page, '#island-widgets');
-  const pageIssues = await page.evaluate(() => {
-    const vw = document.documentElement.clientWidth;
-    const issues = [];
-    if (document.documentElement.scrollWidth - vw > 1) issues.push({ kind: 'doc-h', px: document.documentElement.scrollWidth - vw });
-    if (document.body.scrollWidth - vw > 1) issues.push({ kind: 'body-h', px: document.body.scrollWidth - vw });
-    return { vw, issues };
-  });
+  const issues = await layoutChecks(page, w);
   const tileIssues = await tilesChildrenFit(page);
   const widgets = await widgetImgWidths(page);
   assertWidgetWidths(w, widgets);
-  overflow[w] = pageIssues;
+  if (issues.length) {
+    throw new Error(`layout @ ${w}: ${JSON.stringify(issues)}`);
+  }
+  layout[w] = issues;
   tilesFit[w] = tileIssues;
   widgetWidths[w] = widgets;
   await page.close();
 }
-writeFileSync(join(OUT, 'overflow-check.json'), JSON.stringify({ overflow, tilesFit, widgetWidths }, null, 2));
+writeFileSync(join(OUT, 'overflow-check.json'), JSON.stringify({ layout, tilesFit, widgetWidths }, null, 2));
 
-async function shot(viewport, scale, name, fn) {
+async function shot(viewport, name, fn) {
   const page = await browser.newPage();
   await page.setViewportSize(viewport);
   await page.goto(BASE, { waitUntil: 'networkidle' });
@@ -114,21 +169,33 @@ for (const [suffix, vp] of [
   ['', { width: 1440, height: 900 }],
   ['-390', { width: 390, height: 844 }],
 ]) {
-  await shot(vp, 2, `section-07-island-widgets${suffix}.png`, async (p, path) => {
+  await shot(vp, `section-07-island-widgets${suffix}.png`, async (p, path) => {
     await p.goto(BASE + '/#island-widgets', { waitUntil: 'networkidle' });
     await primeImages(p, '#island-widgets');
     const bad = await tilesChildrenFit(p);
     if (bad.length) throw new Error(`tiles overflow at ${suffix || '1440'}: ${JSON.stringify(bad)}`);
     const widgets = await widgetImgWidths(p);
     assertWidgetWidths(vp.width, widgets);
+    const issues = await layoutChecks(p, vp.width);
+    if (issues.length) throw new Error(issues.map((i) => JSON.stringify(i)).join('; '));
     await p.locator('#island-widgets').screenshot({ path });
   });
 }
 
-await browser.close();
-const anyTiles = Object.values(tilesFit).some((a) => a.length > 0);
-const anyPage = Object.values(overflow).some((o) => o.issues?.length > 0);
-if (anyTiles || anyPage) {
-  throw new Error(JSON.stringify({ overflow, tilesFit }));
+for (const [suffix, vp] of [
+  ['-1440', { width: 1440, height: 900 }],
+  ['-1280', { width: 1280, height: 900 }],
+  ['-1024', { width: 1024, height: 900 }],
+  ['-390', { width: 390, height: 844 }],
+]) {
+  await shot(vp, `hero-devices${suffix}.png`, async (p, path) => {
+    await p.goto(BASE + '/#top', { waitUntil: 'networkidle' });
+    await primeImages(p, 'header.hero');
+    const issues = await layoutChecks(p, vp.width);
+    if (issues.length) throw new Error(`hero ${suffix}: ${JSON.stringify(issues)}`);
+    await p.locator('header.hero').screenshot({ path });
+  });
 }
-console.log(JSON.stringify({ overflow, tilesFit, widgetWidths, verify: 'ok' }, null, 2));
+
+await browser.close();
+console.log(JSON.stringify({ layout, tilesFit, widgetWidths, verify: 'ok' }, null, 2));
