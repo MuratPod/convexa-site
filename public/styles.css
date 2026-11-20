@@ -373,8 +373,7 @@ a {
   position: absolute;
   inset: 0;
   background:
-    linear-gradient(180deg, rgba(6, 10, 18, 0.08) 0%, rgba(6, 10, 18, 0.55) 70%, rgba(6, 10, 18, 0.92) 100%),
-    url("assets/lock-hero-wall.webp") center top / cover no-repeat;
+    linear-gradient(180deg, #1e3558 0%, #14263f 22%, #0c1628 52%, #070b14 100%);
 }
 
 .lock-time {
