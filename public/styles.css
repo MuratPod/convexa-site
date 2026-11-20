@@ -47,6 +47,8 @@
   --wrap: 1240px;
   --hero-wrap: 1400px;
   --nav-h: 80px;
+  --widget-unit: 170px;
+  --widget-gap: 16px;
 }
 
 *,
@@ -296,20 +298,25 @@ a {
   line-height: 0;
 }
 
-.device-screen {
+.device--iphone-16-pro-max .device-screen {
   position: absolute;
   z-index: 0;
   overflow: hidden;
+  background: #000;
   border-radius: var(--screen-radius, 13%);
   inset: var(--inset-top, 1.22%) var(--inset-right, 2.5%) var(--inset-bottom, 1.22%) var(--inset-left, 2.5%);
 }
 
-.device-screen > img {
+.device--iphone-16-pro-max .device-screen > img {
   display: block;
   width: 100%;
   height: 100%;
+  max-width: none;
+  min-width: 100%;
+  min-height: 100%;
   object-fit: cover;
   object-position: top center;
+  border-radius: 0;
 }
 
 .device-bezel {
@@ -781,16 +788,15 @@ a {
 
 .tile-row {
   display: flex;
-  flex-wrap: wrap;
+  flex-flow: row nowrap;
   justify-content: center;
   align-items: flex-start;
-  gap: 20px;
+  gap: var(--widget-gap);
 }
 
-.tiles > img,
-.tile-row img {
+.tiles > img.tile-island-compact,
+.tiles > img.tile-island-expanded {
   border-radius: 0;
-  width: auto;
   max-width: 100%;
   height: auto;
 }
@@ -808,16 +814,20 @@ a {
 }
 
 .tile-widget-small {
-  width: 255px;
-  max-width: min(255px, 58vw);
-  height: auto;
+  width: var(--widget-unit);
+  height: var(--widget-unit);
+  max-width: none;
+  flex: 0 0 auto;
+  object-fit: contain;
   border-radius: 32px;
 }
 
 .tile-widget-medium {
-  width: 546px;
-  max-width: min(546px, calc(100vw - 32px));
-  height: auto;
+  width: calc(2 * var(--widget-unit) + var(--widget-gap));
+  height: var(--widget-unit);
+  max-width: none;
+  flex: 0 0 auto;
+  object-fit: contain;
   border-radius: 32px;
 }
 
@@ -893,6 +903,15 @@ a {
 }
 
 @media (max-width: 900px) {
+  :root {
+    --widget-unit: 150px;
+  }
+
+  .tile-row {
+    flex-direction: column;
+    align-items: center;
+  }
+
   body {
     font-size: 19px;
   }

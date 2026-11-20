@@ -22,6 +22,12 @@ const sections = [
   { file: 'section-privacy', id: '#privacy' },
 ];
 
+async function prepareCapture(page) {
+  await page.addStyleTag({
+    content: '.site-nav { position: static !important; top: auto !important; }',
+  });
+}
+
 async function primeImages(page, selector) {
   await page.evaluate(async (sel) => {
     const scrollHeight = Math.max(document.body.scrollHeight, document.documentElement.scrollHeight);
@@ -74,7 +80,7 @@ const browser = await chromium.launch();
 
 async function newPage(scale) {
   const context = await browser.newContext({ deviceScaleFactor: scale });
-  context.setDefaultTimeout(120_000);
+  context.setDefaultTimeout(240_000);
   return context.newPage();
 }
 
@@ -83,6 +89,7 @@ for (const w of widths) {
   const page = await newPage(1);
   await page.setViewportSize({ width: w, height: w === 1440 ? 900 : 844 });
   await page.goto(BASE, { waitUntil: 'networkidle' });
+  await prepareCapture(page);
   await primeImages(page, null);
   overflow[w] = await overflowCheck(page);
   await page.close();
@@ -93,6 +100,7 @@ async function shot(name, viewport, scale, fn) {
   const page = await newPage(scale);
   await page.setViewportSize(viewport);
   await page.goto(BASE, { waitUntil: 'networkidle' });
+  await prepareCapture(page);
   await fn(page, join(OUT, name));
   await page.close();
 }
@@ -133,16 +141,31 @@ for (const { file, id } of sections) {
   });
 }
 
+async function shotElement(page, locator, path) {
+  await locator.scrollIntoViewIfNeeded().catch(() => {});
+  const box = await locator.boundingBox();
+  if (!box || box.height < 1) throw new Error(`No box for ${path}`);
+  await page.screenshot({ path, clip: box });
+}
+
 await shot('watch-glance.png', sectionVp, 2, async (p, path) => {
   await p.goto(BASE + '/#watch', { waitUntil: 'networkidle' });
   await primeImages(p, '#watch');
-  await p.locator('#watch .watch-shots .shots-two-item').first().locator('.device-screen').screenshot({ path });
+  await shotElement(
+    p,
+    p.locator('#watch .watch-shots .shots-two-item').first().locator('.device--watch-s10'),
+    path,
+  );
 });
 
 await shot('watch-smile.png', sectionVp, 2, async (p, path) => {
   await p.goto(BASE + '/#watch', { waitUntil: 'networkidle' });
   await primeImages(p, '#watch');
-  await p.locator('#watch .watch-shots .shots-two-item').nth(1).locator('.device-screen').screenshot({ path });
+  await shotElement(
+    p,
+    p.locator('#watch .watch-shots .shots-two-item').nth(1).locator('.device--watch-s10'),
+    path,
+  );
 });
 
 await browser.close();
