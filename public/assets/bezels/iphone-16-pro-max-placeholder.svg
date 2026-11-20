@@ -1,6 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 440 904" aria-hidden="true">
-  <!-- Screen cutout 418×882 at (11,11); update .device--iphone-16-pro-max inset vars to match official PNG. -->
-  <path fill="#1b1d24" fill-rule="evenodd" stroke="#3a3e4a" stroke-width="2"
-    d="M0 68C0 30.445 30.445 0 68 0h304c37.555 0 68 30.445 68 68v768c0 37.555-30.445 68-68 68H68c-37.555 0-68-30.445-68-68V68z
-       M11 68c0-31.482 25.518-57 57-57h254c31.482 0 57 25.518 57 57v768c0 31.482-25.518 57-57 57H68c-31.482 0-57-25.518-57-57V68z"/>
-</svg>

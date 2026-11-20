@@ -1,0 +1,89 @@
+Apple Product Bezel PNG measurements
+Measured 2026-11-20 by scanning the alpha channel with Pillow + OpenCV.
+Screen rect is the bounding box of the largest fully transparent (alpha == 0)
+connected component that does not touch the image border — i.e. the screen hole.
+Coordinates are (x, y, w, h) in pixels, origin at the top-left of the PNG.
+Corner radius is estimated from how far the hole is inset at each corner and
+how many rows/columns it takes to reach the straight edge. A 50% alpha contour
+gives a slightly smaller radius because of antialiasing; compositing should use
+the alpha==0 rect and put the bezel PNG on top of the screenshot.
+
+iPhone-16-Pro-Max-Natural-Titanium-Portrait.png
+  original name : iPhone 16 Pro Max - Natural Titanium - Portrait.png
+  source pack   : Bezel-iPhone-16.dmg
+  file size     : 439,456 bytes
+  SHA-256       : 013eb36a7dd1944d96e2d60791bb01a8e5ad27718774c8c42306972ce7b4b1cb
+  image size    : 1470 × 3000 px
+  screen cutout : x=75, y=66, w=1320, h=2868
+  corner radius : ~230 px (circular; flush-edge 230, end-row inset 233–235 from antialiasing)
+  Dynamic Island: x=548, y=109, w=374, h=108 (opaque Dynamic Island pill inside the screen hole; 43 px of screen remains above it, y=66–108). All four titanium colors share this geometry.
+
+iPhone-16-Pro-Max-Black-Titanium-Portrait.png
+  original name : iPhone 16 Pro Max - Black Titanium - Portrait.png
+  source pack   : Bezel-iPhone-16.dmg
+  file size     : 382,572 bytes
+  SHA-256       : c2ecd474699ee14a87994c49d0d28fbe11e2db639ff0fe1b1182e2b513c13135
+  image size    : 1470 × 3000 px
+  screen cutout : x=75, y=66, w=1320, h=2868
+  corner radius : ~230 px (same as Natural Titanium)
+  Dynamic Island: same as Natural Titanium: x=548, y=109, w=374, h=108
+
+iPhone-16-Pro-Max-White-Titanium-Portrait.png
+  original name : iPhone 16 Pro Max - White Titanium - Portrait.png
+  source pack   : Bezel-iPhone-16.dmg
+  file size     : 436,871 bytes
+  SHA-256       : fa7a235ab5ee849c57390c1850d5326bc85d617c5f175c6eb3ea79a541b3096e
+  image size    : 1470 × 3000 px
+  screen cutout : x=75, y=66, w=1320, h=2868
+  corner radius : ~230 px (same as Natural Titanium)
+  Dynamic Island: same as Natural Titanium: x=548, y=109, w=374, h=108
+
+iPhone-16-Pro-Max-Desert-Titanium-Portrait.png
+  original name : iPhone 16 Pro Max - Desert Titanium - Portrait.png
+  source pack   : Bezel-iPhone-16.dmg
+  file size     : 457,447 bytes
+  SHA-256       : 158a3fea38a78a4c3eb6073e25db255b92f7d30a1e944f4b525e76de2e3ad52a
+  image size    : 1470 × 3000 px
+  screen cutout : x=75, y=66, w=1320, h=2868
+  corner radius : ~230 px (same as Natural Titanium)
+  Dynamic Island: same as Natural Titanium: x=548, y=109, w=374, h=108
+
+Apple-Watch-S10-46mm-Aluminum-Jet-Black-Sport-Band-Black.png
+  original name : Apple Watch S10 - 46mm - Aluminum Jet Black + Sport Band Black.png
+  source pack   : Bezel-Apple-Watch-Series-10.dmg
+  file size     : 196,753 bytes
+  SHA-256       : 2c8837b0d409eaf574fe53ed1dc38c41b05a9ba4700b8969aa2642bec4844a04
+  image size    : 560 × 880 px
+  screen cutout : x=72, y=192, w=416, h=496
+  corner radius : ~150 px (nearly circular; flush-edge 150, end-row inset 144 — slight squircle). Screen size 416×496 is the official 46 mm Series 10 resolution.
+  Dynamic Island: none
+
+Apple-Watch-S10-46mm-Aluminum-Silver-Sport-Band-Denim.png
+  original name : Apple Watch S10 - 46mm - Aluminum Silver + Sport Band Denim.png
+  source pack   : Bezel-Apple-Watch-Series-10.dmg
+  file size     : 244,666 bytes
+  SHA-256       : a27eab61d724b12b8f79a65c3e1840a2aa295e80e0b2fa029339445b6de311e9
+  image size    : 560 × 880 px
+  screen cutout : x=72, y=192, w=416, h=496
+  corner radius : ~150 px (same as Jet Black)
+  Dynamic Island: none
+
+Apple-Watch-Ultra-2-Black-Titanium-Ocean-Band-Black.png
+  original name : AW Ultra 2 - Black + Ocean Band Black.png
+  source pack   : Bezel-Apple-Watch-Ultra-2-2024.dmg
+  file size     : 224,970 bytes
+  SHA-256       : ab0fa5171ce087c20a3d2c482fd70cb31f2e653fd92473bff11ac50099124074
+  image size    : 600 × 940 px
+  screen cutout : x=95, y=219, w=410, h=502
+  corner radius : not a circular radius (squircle / superellipse): end-row inset ~146 px; straight side begins ~166–169 px from the corner. Screen size 410×502 is the official Ultra 2 resolution.
+  Dynamic Island: none
+
+Apple-Watch-Ultra-2-Natural-Titanium-Ocean-Band-Black.png
+  original name : AW Ultra 2 - Natural + Ocean Band Black.png
+  source pack   : Bezel-Apple-Watch-Ultra-2-2024.dmg
+  file size     : 246,954 bytes
+  SHA-256       : 7ce991b2d72107dbf4385e02ad6bbab10fcafa5aa636668654e4fe12724a70fb
+  image size    : 600 × 940 px
+  screen cutout : x=95, y=219, w=410, h=502
+  corner radius : same as Black Titanium Ultra 2 (squircle)
+  Dynamic Island: none

@@ -158,7 +158,7 @@ a {
 .hero {
   position: relative;
   overflow: hidden;
-  padding-bottom: 56px;
+  padding-bottom: 40px;
 }
 
 .hero::before {
@@ -281,11 +281,19 @@ a {
   position: relative;
   display: inline-block;
   width: var(--device-width, 400px);
+  aspect-ratio: var(--bezel-aspect, 1470 / 3000);
   max-width: 100%;
   margin: 0;
   line-height: 0;
   vertical-align: top;
-  filter: drop-shadow(0 36px 72px rgba(0, 0, 0, 0.48));
+}
+
+.device > picture {
+  position: relative;
+  z-index: 1;
+  display: block;
+  width: 100%;
+  line-height: 0;
 }
 
 .device-screen {
@@ -315,19 +323,20 @@ a {
 }
 
 .device--iphone-16-pro-max {
-  --inset-top: 1.22%;
-  --inset-right: 2.5%;
-  --inset-bottom: 1.22%;
-  --inset-left: 2.5%;
-  --screen-radius: 13%;
+  --bezel-aspect: 1470 / 3000;
+  --inset-top: 2.2%;
+  --inset-right: 5.102%;
+  --inset-bottom: 2.2%;
+  --inset-left: 5.102%;
+  --screen-radius: 17.42%;
 }
 
 .device--hero-home {
-  --device-width: 360px;
+  --device-width: 296px;
 }
 
 .device--hero-lock {
-  --device-width: 328px;
+  --device-width: 272px;
 }
 
 .device--section {
@@ -340,15 +349,16 @@ a {
 
 .device--watch-s10 {
   --device-width: 204px;
-  --inset-top: 14.3%;
-  --inset-right: 13.8%;
-  --inset-bottom: 14.3%;
-  --inset-left: 13.8%;
-  --screen-radius: 32px;
+  --bezel-aspect: 560 / 880;
+  --inset-top: 21.818%;
+  --inset-right: 12.857%;
+  --inset-bottom: 21.818%;
+  --inset-left: 12.857%;
+  --screen-radius: 36.06%;
 }
 
 .device--hero-watch {
-  --device-width: 196px;
+  --device-width: 172px;
 }
 
 .device--section-watch {
@@ -493,7 +503,7 @@ a {
   width: 100%;
   height: 100%;
   margin: 0;
-  padding: 8% 5.5% 7%;
+  padding: 12% 9% 10%;
   background: #000;
   color: #fff;
   font-family: system-ui, -apple-system, BlinkMacSystemFont, "SF Pro Rounded", "SF Pro Display", sans-serif;
@@ -506,49 +516,54 @@ a {
   text-align: left;
 }
 
-.watch-ui-meta {
-  position: absolute;
-  top: 4.5%;
-  right: 6%;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 0.12em;
-}
-
 .watch-ui-time {
-  font-size: clamp(11px, 9cqh, 14px);
+  position: absolute;
+  top: 6%;
+  right: 8%;
+  left: auto;
+  font-size: clamp(11px, 8.5cqw, 15px);
   font-weight: 600;
-  color: rgba(255, 255, 255, 0.88);
+  color: rgba(255, 255, 255, 0.9);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.01em;
 }
 
 .watch-ui-fresh {
-  font-size: clamp(10px, 7.5cqh, 13px);
+  position: absolute;
+  top: auto;
+  bottom: 9%;
+  right: 8%;
+  left: auto;
+  font-size: clamp(10px, 7.5cqw, 13px);
   font-weight: 700;
   color: var(--gold);
+  white-space: nowrap;
 }
 
 .watch-nlv {
-  margin: 0.15em 0 0;
-  font-size: clamp(18px, 16.5cqw, 30px);
+  margin: 24% 0 0;
+  font-size: clamp(16px, 13.5cqw, 26px);
   font-weight: 700;
   letter-spacing: -0.03em;
-  line-height: 1.05;
+  line-height: 1.06;
   font-variant-numeric: tabular-nums;
+  padding-right: 0;
 }
 
 .watch-day {
-  margin: 0.2em 0 0;
-  font-size: clamp(13px, 10.5cqw, 18px);
+  margin: 0.25em 0 0;
+  font-size: clamp(12px, 9.2cqw, 17px);
   font-weight: 600;
   line-height: 1.25;
+  font-variant-numeric: tabular-nums;
 }
 
 .watch-tickers {
-  margin: 0.45em 0 0;
-  font-size: clamp(12px, 7.8cqw, 14px);
+  margin: 0.35em 0 1.5em;
+  font-size: clamp(10px, 7cqw, 13px);
   font-weight: 600;
-  line-height: 1.38;
+  line-height: 1.42;
   color: rgba(255, 255, 255, 0.92);
   overflow-wrap: anywhere;
 }
@@ -853,6 +868,16 @@ a {
   text-align: center;
 }
 
+.site-footer p {
+  margin: 0 0 10px;
+}
+
+.footer-legal {
+  font-size: 15px;
+  color: var(--tx2);
+  opacity: 0.92;
+}
+
 /* ——— Mobile ——— */
 
 @media (max-width: 900px) {
@@ -949,9 +974,28 @@ a {
 }
 
 @media (min-width: 901px) {
+  .hero-grid {
+    align-items: end;
+  }
+
+  .hero-copy {
+    padding-top: 12px;
+    padding-bottom: 12px;
+  }
+
   .hero-stage {
-    justify-content: flex-end;
-    flex-wrap: wrap;
-    gap: 20px;
+    display: grid;
+    grid-template-columns: 1.08fr 0.98fr 0.52fr;
+    align-items: end;
+    justify-items: center;
+    gap: 0 14px;
+    flex-wrap: nowrap;
+    justify-content: stretch;
+    width: 100%;
+  }
+
+  .device-col--watch {
+    align-self: end;
+    padding-bottom: 2px;
   }
 }
