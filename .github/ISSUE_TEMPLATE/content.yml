@@ -1,0 +1,18 @@
+name: Copy or screenshot change
+description: A wording tweak, a new screen, or a replacement shot.
+title: "[content] "
+labels: ["content"]
+body:
+  - type: textarea
+    id: ask
+    attributes:
+      label: What should change
+    validations:
+      required: true
+  - type: checkboxes
+    id: safety
+    attributes:
+      label: Safety
+      options:
+        - label: Any new screenshot is from the frozen demo book, not a live account.
+          required: true

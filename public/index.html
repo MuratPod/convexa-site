@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Convexa — your options book, live</title>
+  <meta name="description" content="Convexa is an iOS app for a live QQQ options book: net liquidation, the smile, virtual legs, Live Activities, and vol — shown here on a frozen demo book.">
+  <meta name="theme-color" content="#070b12">
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="Convexa — your options book, live">
+  <meta property="og:description" content="A showcase of the finished Convexa iOS app. Every figure is the frozen demo book, not a live account.">
+  <meta property="og:image" content="assets/og.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Convexa — your options book, live">
+  <meta name="twitter:description" content="A showcase of the finished Convexa iOS app, on a frozen demo book.">
+  <meta name="twitter:image" content="assets/og.png">
+  <link rel="icon" href="assets/favicon.png" type="image/png">
+  <link rel="apple-touch-icon" href="assets/favicon.png">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="nav">
+    <div class="nav-inner">
+      <a class="brand" href="#top"><span class="mark">C</span> Convexa</a>
+      <nav class="nav-links">
+        <a href="#screens">Screens</a>
+        <a href="#how">How it’s calculated</a>
+        <a href="#privacy">Privacy</a>
+      </nav>
+    </div>
+  </header>
+
+  <main id="top">
+    <section class="hero">
+      <div class="wrap hero-grid">
+        <div>
+          <p class="kicker">iOS app</p>
+          <h1>Convexa — your options book, <em>live</em></h1>
+          <p class="lede">See the whole book at a glance: net liquidation, the smile, and what happens if you drop today’s options or add a virtual leg. Figures on this page are a frozen demo book, not a live account.</p>
+          <div class="hero-meta">
+            <span class="pill">Demo NLV $64,624.16</span>
+            <span class="pill">Live Activity &amp; Dynamic Island</span>
+            <span class="pill">Updated from IBKR</span>
+          </div>
+        </div>
+        <div class="hero-stage">
+          <figure class="phone phone-hero">
+            <img src="assets/09-lock-two-lines.webp" width="990" height="2151" alt="iPhone Lock Screen showing the Convexa Live Activity in two lines: demo net liquidation, the day change, QQQ, VIX, and VXN.">
+          </figure>
+          <figure class="island-float">
+            <img src="assets/11-island-expanded.webp" width="1200" height="981" alt="Expanded Dynamic Island with the same demo book: net liquidation, the day change, and QQQ, VIX, and VXN.">
+          </figure>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="screens">
+      <div class="wrap">
+        <h2>Every screen, in context</h2>
+        <p class="section-intro">Each shot is the finished app on an iPhone 16 Pro Max, running a frozen demo book dated 20 November 2026. Numbers are virtual. Nothing here is a live brokerage account.</p>
+
+        <article class="shot" id="home">
+          <div class="shot-media">
+            <figure class="phone"><img src="assets/01-home.webp" width="990" height="2151" alt="Home screen with demo net liquidation of $64,624.16, a day change of +$2,671.95, and a U-shaped QQQ smile for a ±3% move."></figure>
+          </div>
+          <div>
+            <h3>Home — the book in one number</h3>
+            <p>Home is the first look at the account: net liquidation value, the day change, and the QQQ smile for a chosen move. The gold and blue lines compare constant volatility with a realized-vol path, so you can see how the book behaves if the index moves three percent today.</p>
+            <p>This is the whole book as it stands — no virtual legs, no horizon filter. It is the picture you glance at before you start changing anything.</p>
+          </div>
+        </article>
+
+        <article class="shot" id="now">
+          <div class="shot-media">
+            <figure class="phone"><img src="assets/02-now.webp" width="990" height="2151" alt="Analysis with the Today horizon: the smile is labelled whole book and still curves up on both sides, with the Virtual leg card beginning under the chart."></figure>
+          </div>
+          <div>
+            <h3>Analysis, Now — the smile of the full book</h3>
+            <p>Analysis keeps the same net liquidation, then lets you choose a horizon. Now (Today) keeps every option still in the book, including the 0DTE hedges that expire on the session you are looking at. The caption reads “whole book,” and the smile stays that familiar U-shape.</p>
+            <p>This is the baseline: what the book looks like if today still counts.</p>
+          </div>
+        </article>
+
+        <article class="shot" id="tomorrow">
+          <div class="shot-media">
+            <figure class="phone"><img src="assets/03-tomorrow.webp" width="990" height="2151" alt="Analysis with the Tomorrow horizon: the smile is labelled without options 20.11 and turns down sharply for an up-move in QQQ."></figure>
+          </div>
+          <div>
+            <h3>Analysis, Tomorrow — after 0DTE comes off</h3>
+            <p>Tomorrow drops every option that expires before the next session. On this demo book that is the 20 November 0DTE, 220 contracts. The caption switches to “without options 20.11,” and the smile changes shape: without those hedges, an up-move in QQQ no longer pays the same way.</p>
+            <p>That is the point of the horizon. You see the book you will actually wake up with, not the one that still includes options that will be gone at the close.</p>
+          </div>
+        </article>
+
+        <article class="shot" id="virtual-leg">
+          <div class="shot-media">
+            <figure class="phone"><img src="assets/04-virtual-leg.webp" width="990" height="2151" alt="Virtual leg card with Today, Tomorrow, and Any date, a call-buy at strike 680, quantity still at zero, and a market price of about $11.02."></figure>
+          </div>
+          <div>
+            <h3>Virtual leg — try a trade, send nothing</h3>
+            <p>The virtual leg is calculation only. You pick an expiry, a call or a put, buy or sell, a strike, and a quantity. The market price and implied vol come from the demo chain. Until quantity is above zero, the leg stays off the chart — you can set it up without moving the smile.</p>
+            <p>When you add it, Analysis redraws the book as if the trade were already on. Nothing is sent to a broker.</p>
+          </div>
+        </article>
+
+        <article class="shot" id="legs">
+          <div class="shot-media">
+            <figure class="phone"><img src="assets/05-legs.webp" width="990" height="2151" alt="My positions list with 0DTE hedges expiring 20 November and January 2027 core legs, each with a quantity stepper, Close, and undo."></figure>
+          </div>
+          <div>
+            <h3>Legs and the stepper — change size in place</h3>
+            <p>Under the smile, the book is listed by expiry. Here the 20 November 0DTE hedges sit above the January 2027 core. Each row has a quantity stepper, Close, and undo, so you can try a smaller or larger size and see the smile move before you commit to anything in the real world.</p>
+            <p>Reset all puts the book back the way the demo opened it.</p>
+          </div>
+        </article>
+
+        <article class="shot" id="vol">
+          <div class="shot-media">
+            <figure class="phone"><img src="assets/06-vol.webp" width="990" height="2151" alt="Vol tab showing vol below usual, ATM implied vol by expiry, and expected-move straddles for the week, the month, and January."></figure>
+          </div>
+          <div>
+            <h3>Vol — is the market cheap or dear?</h3>
+            <p>Vol answers a different question from the smile. “Vol now” says, in plain language, whether implied vol is below or above what QQQ usually does, and what VXN and VIX are doing on the day. The ATM table and the straddles turn that into numbers: a mid, an expected move, and a range, tenor by tenor.</p>
+            <p>The straddles are an expected move, not a trade idea.</p>
+          </div>
+        </article>
+
+        <article class="shot" id="settings">
+          <div class="shot-media">
+            <figure class="phone"><img src="assets/07-settings.webp" width="990" height="2151" alt="Settings for Live Activity: Live is off, Compact layout is selected, and Health reports mode and source as demo."></figure>
+          </div>
+          <div>
+            <h3>Live Activity settings — Compact or Two lines</h3>
+            <p>From Settings you choose how Convexa sits on the Lock Screen. Compact is a single strip: net liquidation, the day change, and QQQ. Two lines adds VIX and VXN underneath. Live stays off in the demo, so the activity shows the frozen book rather than a live feed.</p>
+          </div>
+        </article>
+
+        <article class="shot" id="lock">
+          <div class="shot-media">
+            <div class="pair">
+              <figure class="phone"><img src="assets/08-lock-compact.webp" width="990" height="2151" alt="Lock Screen Live Activity in Compact layout, a single strip with demo net liquidation, the day change, and QQQ."></figure>
+              <figure class="phone"><img src="assets/09-lock-two-lines.webp" width="990" height="2151" alt="Lock Screen Live Activity in Two lines layout, with QQQ, VIX, and VXN on the second line."></figure>
+            </div>
+          </div>
+          <div>
+            <h3>Lock Screen — the book while the phone is asleep</h3>
+            <p>Compact is for a glance. Two lines is for when you also want the tape: QQQ, VIX, and VXN next to the day change. Both cards are the official demo Live Activity, rendered at the 398 pt Lock Screen width of iPhone Pro Max. The figures are the same demo book you see in the app.</p>
+          </div>
+        </article>
+
+        <article class="shot" id="island">
+          <div class="shot-media">
+            <div class="pair">
+              <figure class="wide"><img src="assets/10-island-compact.webp" width="1200" height="763" alt="Compact Dynamic Island pill showing $64.6K and a day change of +4.32%."></figure>
+              <figure class="wide"><img src="assets/11-island-expanded.webp" width="1200" height="981" alt="Expanded Dynamic Island with demo net liquidation, the day change, QQQ, VIX, and VXN."></figure>
+            </div>
+          </div>
+          <div>
+            <h3>Dynamic Island — the same book, in the pill</h3>
+            <p>The compact Island is a short pill: net liquidation as $64.6K and the day as a percent. Expand it and you get the Two lines layout — the full NLV, the dollar change, and QQQ, VIX, and VXN. It is meant to stay readable while you are in another app.</p>
+          </div>
+        </article>
+
+        <article class="shot" id="widget">
+          <div class="shot-media">
+            <div class="pair">
+              <figure class="wide"><img src="assets/12-widget-small.webp" width="1200" height="818" alt="Small Home Screen widget with demo net liquidation, the day change, a now marker, and Worst ±2%."></figure>
+              <figure class="wide"><img src="assets/12-widget-medium.webp" width="1200" height="818" alt="Medium Home Screen widget with demo net liquidation, QQQ, Worst ±2%, and a Flat vol versus Hedged sketch."></figure>
+            </div>
+          </div>
+          <div>
+            <h3>Home Screen widgets — the book on the desktop</h3>
+            <p>The small widget holds net liquidation, the day change, and a “now” marker. The medium widget adds QQQ and a Flat vol / Hedged sketch. Both use the same demo book as the rest of this page — not a sample account with made-up hundreds of thousands.</p>
+          </div>
+        </article>
+
+        <article class="shot" id="premarket">
+          <div class="shot-media">
+            <figure class="phone"><img src="assets/13-premarket.webp" width="990" height="2151" alt="Two lines Lock Screen card on the demo book, with a Premarket · demo book caption under the activity."></figure>
+          </div>
+          <div>
+            <h3>Premarket — the book before the cash open</h3>
+            <p>Before the cash session, the same Two lines card can carry a premarket caption. The demo book is unchanged; the caption tells you the session, so you do not read a pre-open mark as a regular-hours last. On this showcase it is a composed Lock Screen mock of that state.</p>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <section class="section" id="how">
+      <div class="wrap">
+        <h2>How it’s calculated</h2>
+        <p class="section-intro">The app prices the book; it does not place orders. The rules below are the ones behind every smile on this page.</p>
+        <div class="how-grid">
+          <article class="how-card">
+            <div class="num">01</div>
+            <h3>Black-Scholes, leg by leg</h3>
+            <p>Each option is valued with Black-Scholes (Black–Scholes–Merton, with a dividend yield). The smile you see is the sum of those legs at a given QQQ move, not a single fitted curve on the index.</p>
+          </article>
+          <article class="how-card">
+            <div class="num">02</div>
+            <h3>Tomorrow without 0DTE</h3>
+            <p>The Tomorrow horizon drops every option that expires before the next session. On this demo book that is the 20 November 0DTE. Today keeps those legs; Tomorrow shows the book you have once they are gone.</p>
+          </article>
+          <article class="how-card">
+            <div class="num">03</div>
+            <h3>IBKR, every minute</h3>
+            <p>In live use, marks and net liquidation come from Interactive Brokers, refreshed about once a minute through Convexa’s feed. This page uses a frozen demo snapshot instead, so the figures never change while you read.</p>
+          </article>
+          <article class="how-card">
+            <div class="num">04</div>
+            <h3>Premarket is labelled</h3>
+            <p>Before the cash open, the Lock Screen and the app can show a premarket state. The book is still marked; the caption is there so a pre-open price is not mistaken for a regular-hours close.</p>
+          </article>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer id="privacy">
+    <div class="wrap">
+      <h2>Privacy</h2>
+      <p>This site is a static showcase. It does not set cookies, does not run analytics, and does not collect accounts, addresses, or trading data. Every figure on the page is from a frozen demo book (net liquidation $64,624.16). No live account number, no real net liquidation, and no feed credentials appear here.</p>
+      <p>Convexa is a personal iOS app for a QQQ options book. This page is not a brokerage, not an offer to trade, and not investment advice.</p>
+      <p class="legal">© 2026 Convexa. All rights reserved. Demo screens captured 20 November 2026.</p>
+    </div>
+  </footer>
+</body>
+</html>
