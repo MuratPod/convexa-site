@@ -6,9 +6,10 @@ demo net liquidation of $64,624.16 are virtual. This repository must never
 hold a live account number, a real net liquidation, or feed credentials.
 
 The production host is intended to be the apex of `convexa.today`. Until
-that cutover is approved, the site is previewed on a `*.workers.dev`
-address. DNS, Cloudflare Access, the existing `convexa-web` worker, and
-the `proto.` / `live.` hosts are out of scope here.
+that cutover is approved, the preview is at
+[https://convexa-site.convexa.workers.dev/](https://convexa-site.convexa.workers.dev/).
+DNS, Cloudflare Access, the existing `convexa-web` worker, and the
+`proto.` / `live.` hosts are out of scope here.
 
 ## Local preview
 
