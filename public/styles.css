@@ -358,7 +358,7 @@ a {
 }
 
 .device--hero-watch {
-  --device-width: 172px;
+  --device-width: 218px;
 }
 
 .device--section-watch {
@@ -496,124 +496,170 @@ a {
   font-weight: 500;
 }
 
-/* watchOS-style mock (HTML only; 416×496 @2x proportion via shell). */
-.watch-ui {
-  position: relative;
-  box-sizing: border-box;
+/* watchOS mock: laid out at 416×496 (@2x) then scaled to the bezel cutout. */
+.device--watch-s10 .device-screen {
+  container-type: size;
+  container-name: watchscreen;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  overflow: hidden;
+  background: #000;
+}
+
+.watch-ui-canvas {
+  --wu: calc(100cqw / 416);
   width: 100%;
   height: 100%;
-  margin: 0;
-  padding: 14% 12% 11%;
+  box-sizing: border-box;
   background: #000;
   color: #fff;
   font-family: system-ui, -apple-system, BlinkMacSystemFont, "SF Pro Rounded", "SF Pro Display", sans-serif;
-  container-type: size;
+  overflow: hidden;
   display: flex;
   flex-direction: column;
-  align-items: stretch;
-  justify-content: flex-start;
-  overflow: hidden;
   text-align: left;
 }
 
-.watch-ui-time {
-  position: absolute;
-  top: 8%;
-  right: 11%;
-  left: auto;
-  font-size: clamp(10px, 7.8cqw, 14px);
+.watch-top {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: calc(var(--wu) * 12px);
+  padding: calc(var(--wu) * 42px) calc(var(--wu) * 88px) 0 calc(var(--wu) * 52px);
+  flex-shrink: 0;
+}
+
+.watch-pill {
+  display: inline-block;
+  padding: calc(var(--wu) * 3px) calc(var(--wu) * 10px);
+  border-radius: 999px;
+  background: rgba(255, 195, 74, 0.2);
+  color: var(--gold);
+  font-size: calc(var(--wu) * 13px);
+  font-weight: 700;
+  line-height: 1.2;
+  flex: 0 0 auto;
+}
+
+.watch-top-time {
+  font-size: calc(var(--wu) * 15px);
   font-weight: 600;
-  color: rgba(255, 255, 255, 0.9);
-  white-space: nowrap;
   font-variant-numeric: tabular-nums;
   letter-spacing: 0.02em;
-}
-
-.watch-ui-fresh {
-  font-size: clamp(10px, 7.2cqw, 13px);
-  font-weight: 700;
-  color: var(--gold);
   white-space: nowrap;
-}
-
-.watch-fresh-line {
-  margin: 0.1em 0 0;
-  line-height: 1;
-}
-
-.watch-nlv {
-  margin: 22% 0 0;
-  font-size: clamp(15px, 12.8cqw, 25px);
-  font-weight: 700;
-  letter-spacing: -0.03em;
-  line-height: 1.06;
-  font-variant-numeric: tabular-nums;
-  padding-right: 0;
-}
-
-.watch-day {
-  margin: 0.25em 0 0;
-  font-size: clamp(12px, 9.2cqw, 17px);
-  font-weight: 600;
-  line-height: 1.25;
-  font-variant-numeric: tabular-nums;
-}
-
-.watch-tickers {
-  margin: 0.3em 0 0;
-  font-size: clamp(9px, 6.5cqw, 12px);
-  font-weight: 600;
-  line-height: 1.42;
+  flex: 0 0 auto;
   color: rgba(255, 255, 255, 0.92);
-  overflow-wrap: anywhere;
-}
-
-.watch-ui .sym {
-  color: var(--blue);
-  font-weight: 700;
-}
-
-.watch-ui .up {
-  color: var(--green);
-}
-
-.watch-ui .down {
-  color: var(--red);
-}
-
-.watch-ui--smile .watch-ui-time {
-  position: absolute;
-  top: 4.5%;
-  right: 6%;
 }
 
 .watch-smile-title {
-  margin: 18% 0 0;
-  font-size: clamp(13px, 9.5cqw, 17px);
+  margin: 0;
+  font-size: calc(var(--wu) * 16px);
   font-weight: 700;
+  flex: 1 1 auto;
+  min-width: 0;
+  white-space: nowrap;
+}
+
+.watch-main-body {
+  padding: calc(var(--wu) * 10px) calc(var(--wu) * 52px) 0;
+  flex-shrink: 0;
+}
+
+.watch-nlv {
+  margin: 0;
+  font-size: calc(100cqw / 416 * 33px);
+  font-weight: 700;
+  letter-spacing: -0.035em;
+  line-height: 1.04;
+  font-variant-numeric: tabular-nums;
+}
+
+.watch-day {
+  margin: calc(var(--wu) * 8px) 0 0;
+  font-size: calc(var(--wu) * 15px);
+  font-weight: 600;
+  line-height: 1.2;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.watch-ticks {
+  margin-top: auto;
+  padding: calc(var(--wu) * 14px) calc(var(--wu) * 52px) calc(var(--wu) * 50px);
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--wu) * 8px);
+  flex-shrink: 0;
+}
+
+.watch-tick-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: calc(var(--wu) * 12px);
+  margin: 0;
+  font-size: calc(var(--wu) * 14px);
+  font-weight: 600;
+  line-height: 1.25;
+  font-variant-numeric: tabular-nums;
+  color: rgba(255, 255, 255, 0.94);
+}
+
+.watch-tick-row .sym {
+  color: var(--blue);
+  font-weight: 700;
+  flex: 0 0 calc(var(--wu) * 44px);
+}
+
+.tick-nums {
+  text-align: right;
+  flex: 1 1 auto;
+  white-space: nowrap;
+}
+
+.watch-ui-canvas .up {
+  color: var(--green);
+}
+
+.watch-ui-canvas .down {
+  color: var(--red);
+}
+
+.watch-ui--smile .watch-smile-chart-wrap {
+  flex: 1 1 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: calc(var(--wu) * 10px) calc(var(--wu) * 52px) 0;
+  min-height: calc(var(--wu) * 180px);
 }
 
 .watch-smile-chart {
   display: block;
-  width: 100%;
-  flex: 1 1 auto;
-  min-height: 42%;
-  margin: 0.35em 0 0;
+  width: calc(var(--wu) * 312px);
+  max-width: calc(100% - var(--wu) * 8px);
+  height: auto;
 }
 
-.watch-smile-hint {
-  margin: 0.25em 0 0;
-  font-size: clamp(11px, 7cqw, 13px);
+.watch-smile-big {
+  margin: calc(var(--wu) * 6px) calc(var(--wu) * 52px) 0;
+  font-size: calc(var(--wu) * 34px);
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  line-height: 1.05;
+  font-variant-numeric: tabular-nums;
+  color: var(--gold);
+  flex-shrink: 0;
+}
+
+.watch-smile-sub {
+  margin: calc(var(--wu) * 4px) calc(var(--wu) * 52px) 0;
+  padding-bottom: calc(var(--wu) * 44px);
+  font-size: calc(var(--wu) * 14px);
   font-weight: 600;
   color: var(--tx2);
-}
-
-.watch-smile-hint .gold {
-  color: var(--gold);
-}
-
-.watch-smile-hint .blue {
-  color: var(--blue);
+  flex-shrink: 0;
 }
 
 .watch-shots .device--section-watch {
@@ -943,7 +989,7 @@ a {
   }
 
   .device--hero-watch {
-    --device-width: 188px;
+    --device-width: 196px;
   }
 
   .section {
