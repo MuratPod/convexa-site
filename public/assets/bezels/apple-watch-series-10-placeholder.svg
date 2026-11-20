@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 232 280" aria-hidden="true">
+  <!-- Screen cutout ~168×200 at (32,40), 416×496 @2x proportion; update .device--watch-s10 inset vars. -->
+  <path fill="#1b1d24" fill-rule="evenodd" stroke="#3a3e4a" stroke-width="2"
+    d="M24 32c0-17.673 14.327-32 32-32h120c17.673 0 32 14.327 32 32v216c0 17.673-14.327 32-32 32H56c-17.673 0-32-14.327-32-32V32z
+       M32 40c-4.418 0-8 3.582-8 8v184c0 4.418 3.582 8 8 8h168c4.418 0 8-3.582 8-8V48c0-4.418-3.582-8-8-8H32z"/>
+</svg>

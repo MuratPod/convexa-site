@@ -18,10 +18,12 @@ npx wrangler dev
 ```
 
 The site lives in `public/`: `index.html`, `styles.css`, self-hosted
-Inter fonts under `public/assets/fonts/`, and optimized WebP screenshots
-under `public/assets/`. Source device PNGs used to build those assets
-are kept under `screens/` for reference (swap a PNG, regenerate WebP,
-commit).
+Inter fonts under `public/assets/fonts/`, optimized WebP screenshots
+under `public/assets/`, and placeholder device bezels under
+`public/assets/bezels/` (replace with Apple Design Resources PNGs and
+update the `--inset-*` variables on `.device--iphone-16-pro-max` /
+`.device--watch-s10` in `styles.css`). Source device PNGs are under
+`screens/` (swap a PNG, regenerate WebP, commit).
 
 ## Deploy
 

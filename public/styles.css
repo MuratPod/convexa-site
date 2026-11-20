@@ -171,17 +171,10 @@ a {
     radial-gradient(520px 360px at 78% 38%, rgba(255, 195, 74, 0.12), transparent 70%);
 }
 
-/*
- * Apple Watch slot: delete `.watch-slot`, or add `.watch-slot--hidden`.
- * Layout stays in normal flow — no empty grid track (desktop: copy + watch in
- * column 1; mobile: copy, phones, then watch).
- */
-
 .hero-grid {
   position: relative;
   display: grid;
   grid-template-columns: minmax(0, 440px) minmax(0, 1fr);
-  grid-template-rows: auto auto;
   gap: clamp(20px, 3vw, 40px);
   align-items: start;
   padding-top: 24px;
@@ -194,12 +187,7 @@ a {
 
 .hero-stage {
   grid-column: 2;
-  grid-row: 1 / span 2;
-}
-
-.watch-slot {
-  grid-column: 1;
-  grid-row: 2;
+  grid-row: 1;
 }
 
 .hero-copy {
@@ -265,104 +253,113 @@ a {
   color: var(--green);
 }
 
-.watch-slot {
-  margin-top: 44px;
-  width: 220px;
-  max-width: 100%;
-  min-height: 268px;
-  border: 3px dashed var(--gold);
-  border-radius: 56px;
-  display: grid;
-  place-items: center;
-  text-align: center;
-  color: var(--gold);
-  font-weight: 700;
-  font-size: 20px;
-  line-height: 1.35;
-  background: rgba(255, 195, 74, 0.05);
-}
-
-.watch-slot small {
-  display: block;
-  color: var(--tx2);
-  font-weight: 500;
-  font-size: 15px;
-  margin-top: 6px;
-}
-
-.watch-slot--hidden {
-  display: none;
-}
-
 .hero-stage {
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
   align-items: flex-end;
-  gap: clamp(20px, 3vw, 32px);
+  gap: clamp(16px, 2.5vw, 28px);
   padding-top: 8px;
   min-width: 0;
   max-width: 100%;
 }
 
-.phone-col {
+.device-col {
   display: flex;
   flex-direction: column;
   align-items: center;
   flex: 0 0 auto;
 }
 
-.phone-col--home {
-  order: 1;
+/*
+ * Device shell: screen content sits under a transparent cutout; the bezel PNG/SVG
+ * stacks on top (z-index 1). Replace assets/bezels/* and update --inset-* to match
+ * Apple Design Resources screen rectangles. Scale shells via --device-width only
+ * (uniform scaling — content and bezel share the same box).
+ */
+.device {
   position: relative;
-  z-index: 2;
+  display: inline-block;
+  width: var(--device-width, 400px);
+  max-width: 100%;
+  margin: 0;
+  line-height: 0;
+  vertical-align: top;
+  filter: drop-shadow(0 36px 72px rgba(0, 0, 0, 0.48));
 }
 
-.phone-col--lock {
-  order: 2;
+.device-screen {
+  position: absolute;
+  z-index: 0;
+  overflow: hidden;
+  border-radius: var(--screen-radius, 13%);
+  inset: var(--inset-top, 1.22%) var(--inset-right, 2.5%) var(--inset-bottom, 1.22%) var(--inset-left, 2.5%);
+}
+
+.device-screen > img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: top center;
+}
+
+.device-bezel {
   position: relative;
   z-index: 1;
-  padding-bottom: 0;
-}
-
-.phone {
-  margin: 0;
-  background: #1b1d24;
-  border: 1px solid #3a3e4a;
-  border-radius: 68px;
-  padding: 11px;
-  box-shadow: 0 40px 80px rgba(0, 0, 0, 0.55);
-  flex: none;
-  max-width: 100%;
-}
-
-.phone--home {
+  display: block;
   width: 100%;
-  max-width: 400px;
+  height: auto;
+  pointer-events: none;
+  user-select: none;
 }
 
-.phone--lock {
-  width: 100%;
-  max-width: 372px;
-  margin-top: 56px;
+.device--iphone-16-pro-max {
+  --inset-top: 1.22%;
+  --inset-right: 2.5%;
+  --inset-bottom: 1.22%;
+  --inset-left: 2.5%;
+  --screen-radius: 13%;
 }
 
-.phone img {
-  width: 100%;
-  border-radius: 57px;
+.device--hero-home {
+  --device-width: 360px;
 }
 
-/* Hero lock screen: wallpaper crop + full-width Live Activity (numbers scale with phone width). */
-.phone--lock-hero {
-  width: 100%;
-  max-width: 372px;
+.device--hero-lock {
+  --device-width: 328px;
 }
 
-.phone--lock-hero .lock-face {
+.device--section {
+  --device-width: 368px;
+}
+
+.device--section-dual {
+  --device-width: 304px;
+}
+
+.device--watch-s10 {
+  --device-width: 204px;
+  --inset-top: 14.3%;
+  --inset-right: 13.8%;
+  --inset-bottom: 14.3%;
+  --inset-left: 13.8%;
+  --screen-radius: 32px;
+}
+
+.device--hero-watch {
+  --device-width: 196px;
+}
+
+.device--section-watch {
+  --device-width: 220px;
+}
+
+.device-screen .lock-face {
   position: relative;
   width: 100%;
-  aspect-ratio: 1320 / 2868;
-  border-radius: 57px;
+  height: 100%;
+  min-height: 100%;
   overflow: hidden;
   container-type: inline-size;
   container-name: lockface;
@@ -481,12 +478,137 @@ a {
   background: rgba(255, 255, 255, 0.88);
 }
 
-.phone-cap {
+.device-cap {
   margin-top: 16px;
   text-align: center;
   color: var(--tx2);
   font-size: 17px;
   font-weight: 500;
+}
+
+/* watchOS-style mock (HTML only; 416×496 @2x proportion via shell). */
+.watch-ui {
+  position: relative;
+  box-sizing: border-box;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 8% 5.5% 7%;
+  background: #000;
+  color: #fff;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "SF Pro Rounded", "SF Pro Display", sans-serif;
+  container-type: size;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: flex-start;
+  overflow: hidden;
+  text-align: left;
+}
+
+.watch-ui-meta {
+  position: absolute;
+  top: 4.5%;
+  right: 6%;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.12em;
+}
+
+.watch-ui-time {
+  font-size: clamp(11px, 9cqh, 14px);
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.88);
+}
+
+.watch-ui-fresh {
+  font-size: clamp(10px, 7.5cqh, 13px);
+  font-weight: 700;
+  color: var(--gold);
+}
+
+.watch-nlv {
+  margin: 0.15em 0 0;
+  font-size: clamp(18px, 16.5cqw, 30px);
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  line-height: 1.05;
+  font-variant-numeric: tabular-nums;
+}
+
+.watch-day {
+  margin: 0.2em 0 0;
+  font-size: clamp(13px, 10.5cqw, 18px);
+  font-weight: 600;
+  line-height: 1.25;
+}
+
+.watch-tickers {
+  margin: 0.45em 0 0;
+  font-size: clamp(12px, 7.8cqw, 14px);
+  font-weight: 600;
+  line-height: 1.38;
+  color: rgba(255, 255, 255, 0.92);
+  overflow-wrap: anywhere;
+}
+
+.watch-ui .sym {
+  color: var(--blue);
+  font-weight: 700;
+}
+
+.watch-ui .up {
+  color: var(--green);
+}
+
+.watch-ui .down {
+  color: var(--red);
+}
+
+.watch-ui--smile .watch-ui-time {
+  position: absolute;
+  top: 4.5%;
+  right: 6%;
+}
+
+.watch-smile-title {
+  margin: 18% 0 0;
+  font-size: clamp(13px, 9.5cqw, 17px);
+  font-weight: 700;
+}
+
+.watch-smile-chart {
+  display: block;
+  width: 100%;
+  flex: 1 1 auto;
+  min-height: 42%;
+  margin: 0.35em 0 0;
+}
+
+.watch-smile-hint {
+  margin: 0.25em 0 0;
+  font-size: clamp(11px, 7cqw, 13px);
+  font-weight: 600;
+  color: var(--tx2);
+}
+
+.watch-smile-hint .gold {
+  color: var(--gold);
+}
+
+.watch-smile-hint .blue {
+  color: var(--blue);
+}
+
+.watch-shots .device--section-watch {
+  --device-width: 212px;
+}
+
+@media (max-width: 900px) {
+  .watch-shots .device--section-watch {
+    --device-width: 196px;
+  }
 }
 
 .demo-note {
@@ -611,9 +733,8 @@ a {
   align-items: flex-start;
 }
 
-.shots-one .phone-frame {
-  width: 100%;
-  max-width: 380px;
+.shots-one .device--section {
+  --device-width: 368px;
 }
 
 .shots-two {
@@ -630,9 +751,8 @@ a {
   align-items: center;
 }
 
-.shots-two .phone-frame {
-  width: 100%;
-  max-width: 330px;
+.shots-two .device--section-dual {
+  --device-width: 300px;
 }
 
 .shots-two .shot-label {
@@ -644,18 +764,6 @@ a {
   color: var(--tx2);
 }
 
-.phone-frame {
-  background: #1b1d24;
-  border: 1px solid #3a3e4a;
-  border-radius: 68px;
-  padding: 11px;
-  box-shadow: 0 32px 64px rgba(0, 0, 0, 0.45);
-}
-
-.phone-frame img {
-  border-radius: 57px;
-  width: 100%;
-}
 
 .tiles {
   display: grid;
@@ -772,8 +880,7 @@ a {
   }
 
   .hero-copy,
-  .hero-stage,
-  .watch-slot {
+  .hero-stage {
     grid-column: auto;
     grid-row: auto;
   }
@@ -796,36 +903,22 @@ a {
     font-size: 15px;
   }
 
-  .watch-slot {
-    margin: 28px auto 0;
-    width: 180px;
-    min-height: 220px;
-    border-radius: 46px;
-    font-size: 18px;
-  }
-
   .hero-stage {
     flex-direction: column;
     align-items: center;
-    gap: 32px;
+    gap: 28px;
   }
 
-  .phone-col--home,
-  .phone-col--lock {
-    order: unset;
+  .device--hero-home {
+    --device-width: 336px;
   }
 
-  .phone--home {
-    max-width: 340px;
+  .device--hero-lock {
+    --device-width: 312px;
   }
 
-  .phone--lock {
-    max-width: 320px;
-    margin-top: 0;
-  }
-
-  .phone--lock-hero {
-    max-width: 328px;
+  .device--hero-watch {
+    --device-width: 188px;
   }
 
   .section {
@@ -846,8 +939,8 @@ a {
     font-size: 18px;
   }
 
-  .shots-two .phone-frame {
-    max-width: 300px;
+  .shots-two .device--section-dual {
+    --device-width: 280px;
   }
 
   .grid-three {
@@ -858,25 +951,7 @@ a {
 @media (min-width: 901px) {
   .hero-stage {
     justify-content: flex-end;
-    flex-wrap: nowrap;
+    flex-wrap: wrap;
     gap: 20px;
-  }
-
-  .phone-col--home {
-    margin-right: -16px;
-  }
-
-  .phone--home {
-    max-width: 384px;
-  }
-
-  .phone--lock {
-    max-width: 360px;
-    margin-top: 72px;
-  }
-
-  .phone--lock-hero {
-    width: 360px;
-    max-width: 360px;
   }
 }
