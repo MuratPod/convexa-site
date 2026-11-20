@@ -79,7 +79,29 @@ async function assertIphoneScreenShapes(page) {
   }
 }
 
+async function assertLockCloseupScale(page) {
+  const issues = await page.evaluate(() => {
+    const out = [];
+    for (const img of document.querySelectorAll('#lock-screen .lock-card-closeup img')) {
+      const r = img.getBoundingClientRect();
+      const { naturalWidth: nw, naturalHeight: nh } = img;
+      if (!nw || !nh || r.width < 1 || r.height < 1) continue;
+      const natAspect = nw / nh;
+      const rendAspect = r.width / r.height;
+      const drift = Math.abs(natAspect - rendAspect) / natAspect;
+      if (drift > 0.01) {
+        out.push({ src: img.getAttribute('src'), nw, nh, w: r.width, h: r.height, natAspect, rendAspect, drift });
+      }
+    }
+    return out;
+  });
+  if (issues.length) {
+    throw new Error(`lock closeup aspect: ${JSON.stringify(issues)}`);
+  }
+}
+
 async function assertLockCloseups(page, vw) {
+  await assertLockCloseupScale(page);
   if (vw !== 1440 && vw !== 390) return;
   const minStripWidth = vw <= 390 ? 280 : 360;
   const rows = await page.evaluate(() => {

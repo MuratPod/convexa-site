@@ -35,10 +35,10 @@ for (const [src, dest] of map) {
 }
 
 const compactCard = {
-  left: 63,
-  top: 2685,
-  width: 1194,
-  height: 135,
+  left: 58,
+  top: 2587,
+  width: 1204,
+  height: 192,
 };
 const compactCardOut = join(outDir, '08-lock-compact-card-3x.webp');
 await sharp(join(screensDir, '08-lock-compact-398.png'))
