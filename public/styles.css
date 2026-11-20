@@ -505,6 +505,11 @@ a {
   align-items: flex-start;
   overflow: hidden;
   background: #000;
+  /* ~36% corner radius: top/bottom band rows need ≥50px native side inset */
+  --watch-inset-mid: calc(100cqw * 24 / 416);
+  --watch-inset-edge-x: calc(100cqw * 62 / 416);
+  --watch-inset-edge-dy: calc(100cqh * 96 / 496);
+  --watch-inset-ticker-r: calc(100cqw * 32 / 416);
 }
 
 .watch-ui-canvas {
@@ -524,26 +529,22 @@ a {
   justify-content: flex-start;
   padding:
     calc(100cqh * 44 / 496)
-    calc(100cqw * 24 / 416)
-    calc(100cqh * 56 / 496)
-    calc(100cqw * 24 / 416);
+    var(--watch-inset-mid)
+    var(--watch-inset-edge-dy)
+    var(--watch-inset-mid);
 }
 
 .watch-ui--smile {
   padding:
-    calc(100cqh * 44 / 496)
-    calc(100cqw * 24 / 416)
+    calc(100cqh * 58 / 496)
+    var(--watch-inset-mid)
     calc(100cqh * 52 / 496)
-    calc(100cqw * 32 / 416);
+    var(--watch-inset-edge-x);
   gap: calc(100cqh * 6 / 496);
 }
 
-.watch-ui--smile .watch-top-time {
-  margin-right: calc(100cqw * 54 / 416);
-}
-
 .watch-top-time {
-  margin-right: calc(100cqw * 62 / 416);
+  margin-right: calc(100cqw * 38 / 416);
 }
 
 .watch-top {
@@ -553,6 +554,7 @@ a {
   gap: calc(100cqw * 12 / 416);
   padding: 0;
   flex-shrink: 0;
+  margin-inline: calc(100cqw * 38 / 416);
 }
 
 .watch-pill {
@@ -620,11 +622,15 @@ a {
 
 .watch-ticks {
   margin-top: 0;
-  padding: 0;
+  padding: 0 var(--watch-inset-ticker-r) 0 0;
   display: flex;
   flex-direction: column;
   gap: calc(100cqh * 10 / 496);
   flex-shrink: 0;
+}
+
+.watch-ui--smile .watch-top {
+  margin-inline: 0;
 }
 
 .watch-tick-row {
