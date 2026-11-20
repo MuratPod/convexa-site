@@ -38,14 +38,21 @@ async function overflowCheck(page) {
     const timeBox = time
       ? {
           text: time.textContent,
-          paddingTop: getComputedStyle(time.closest('.watch-top')).paddingTop,
-          paddingRight: getComputedStyle(time.closest('.watch-top')).paddingRight,
           fontSize: getComputedStyle(time).fontSize,
           rect: time.getBoundingClientRect(),
           screen: time.closest('.device-screen')?.getBoundingClientRect(),
         }
       : null;
-    return { vw, issues, timeBox };
+    const nlv = document.querySelector('.device--hero-watch .watch-nlv');
+    const nlvBox = nlv
+      ? {
+          fontSize: getComputedStyle(nlv).fontSize,
+          overflow: nlv.scrollWidth > nlv.clientWidth + 1,
+          sw: nlv.scrollWidth,
+          cw: nlv.clientWidth,
+        }
+      : null;
+    return { vw, issues, timeBox, nlvBox };
   });
 }
 
