@@ -3,3 +3,6 @@ node_modules/
 .wrangler/
 dist/
 *.log
+screens/._*
+screens/qa-*
+screens/*.tar
