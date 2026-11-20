@@ -7,6 +7,28 @@ const OUT = '/opt/cursor/artifacts';
 mkdirSync(OUT, { recursive: true });
 const widths = [1440, 1280, 1024, 390, 360];
 
+function minWidgetWidthForViewport(w) {
+  return w <= 390 ? 120 : 140;
+}
+
+async function widgetImgWidths(page) {
+  return page.evaluate(() => {
+    const imgs = document.querySelectorAll('#island-widgets .tile-row img');
+    return [...imgs].map((img) => ({
+      cls: img.className.split(/\s+/).find((c) => c.startsWith('tile-widget')) || img.className,
+      width: img.getBoundingClientRect().width,
+    }));
+  });
+}
+
+function assertWidgetWidths(w, rows) {
+  const minW = minWidgetWidthForViewport(w);
+  const bad = rows.filter((r) => r.width + 0.5 < minW);
+  if (bad.length) {
+    throw new Error(`widget width < ${minW}px at ${w}: ${JSON.stringify(bad)}`);
+  }
+}
+
 async function tilesChildrenFit(page) {
   return page.evaluate(() => {
     const tiles = document.querySelector('#island-widgets .tiles');
@@ -55,6 +77,7 @@ async function primeImages(page, selector) {
 const browser = await chromium.launch();
 const overflow = {};
 const tilesFit = {};
+const widgetWidths = {};
 for (const w of widths) {
   const page = await browser.newPage();
   await page.setViewportSize({ width: w, height: w >= 1024 ? 900 : 844 });
@@ -69,11 +92,14 @@ for (const w of widths) {
     return { vw, issues };
   });
   const tileIssues = await tilesChildrenFit(page);
+  const widgets = await widgetImgWidths(page);
+  assertWidgetWidths(w, widgets);
   overflow[w] = pageIssues;
   tilesFit[w] = tileIssues;
+  widgetWidths[w] = widgets;
   await page.close();
 }
-writeFileSync(join(OUT, 'overflow-check.json'), JSON.stringify({ overflow, tilesFit }, null, 2));
+writeFileSync(join(OUT, 'overflow-check.json'), JSON.stringify({ overflow, tilesFit, widgetWidths }, null, 2));
 
 async function shot(viewport, scale, name, fn) {
   const page = await browser.newPage();
@@ -93,6 +119,8 @@ for (const [suffix, vp] of [
     await primeImages(p, '#island-widgets');
     const bad = await tilesChildrenFit(p);
     if (bad.length) throw new Error(`tiles overflow at ${suffix || '1440'}: ${JSON.stringify(bad)}`);
+    const widgets = await widgetImgWidths(p);
+    assertWidgetWidths(vp.width, widgets);
     await p.locator('#island-widgets').screenshot({ path });
   });
 }
@@ -103,4 +131,4 @@ const anyPage = Object.values(overflow).some((o) => o.issues?.length > 0);
 if (anyTiles || anyPage) {
   throw new Error(JSON.stringify({ overflow, tilesFit }));
 }
-console.log(JSON.stringify({ overflow, tilesFit, verify: 'ok' }, null, 2));
+console.log(JSON.stringify({ overflow, tilesFit, widgetWidths, verify: 'ok' }, null, 2));

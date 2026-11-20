@@ -813,8 +813,8 @@ a {
   width: 100%;
   max-width: 100%;
   box-sizing: border-box;
-  /* small + gap + medium = 3U + gap */
-  --widget-unit: min(200px, calc((100% - var(--widget-gap)) / 3));
+  /* 100cqw = .tiles tray; omit extra 48px (padding already excluded from cqw). */
+  --widget-unit: min(200px, calc((100cqw - var(--widget-gap)) / 3));
 }
 
 .tiles > img.tile-island-compact,
@@ -835,17 +835,15 @@ a {
 .tile-widget-small {
   width: var(--widget-unit);
   height: var(--widget-unit);
-  max-width: 100%;
-  flex: 0 1 auto;
+  flex: 0 0 auto;
   object-fit: contain;
   border-radius: 32px;
 }
 
 .tile-widget-medium {
-  width: min(calc(2 * var(--widget-unit) + var(--widget-gap)), 100%);
+  width: calc(2 * var(--widget-unit) + var(--widget-gap));
   height: var(--widget-unit);
-  max-width: 100%;
-  flex: 0 1 auto;
+  flex: 0 0 auto;
   object-fit: contain;
   border-radius: 32px;
 }
@@ -921,12 +919,6 @@ a {
   }
 }
 
-@media (max-width: 1024px) {
-  #island-widgets .row {
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr);
-  }
-}
-
 @media (max-width: 900px) {
   #island-widgets .row {
     grid-template-columns: 1fr;
@@ -935,11 +927,7 @@ a {
   .tile-row {
     flex-direction: column;
     align-items: center;
-    --widget-unit: min(150px, 44vw);
-  }
-
-  .tile-widget-medium {
-    width: min(calc(2 * var(--widget-unit) + var(--widget-gap)), 100%);
+    --widget-unit: min(150px, calc((100cqw - var(--widget-gap)) / 2));
   }
 
   body {
