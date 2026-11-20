@@ -292,5 +292,35 @@ for (const [suffix, vp] of [
   });
 }
 
+for (const [suffix, vp] of [
+  ['-360', { width: 360, height: 844 }],
+  ['-390', { width: 390, height: 844 }],
+  ['-768', { width: 768, height: 1024 }],
+]) {
+  await shot(vp, `mobile-menu-open${suffix}.png`, async (p, path) => {
+    await p.goto(BASE + '/#top', { waitUntil: 'networkidle' });
+    await p.locator('#nav-menu-btn').click();
+    await p.waitForSelector('#nav-mobile-overlay:not([hidden])');
+    const bleed = await p.evaluate(() => {
+      const h1 = document.querySelector('.hero h1');
+      const overlay = document.querySelector('#nav-mobile-panel');
+      if (!h1 || !overlay) return null;
+      const hr = h1.getBoundingClientRect();
+      const or = overlay.getBoundingClientRect();
+      const cs = getComputedStyle(overlay);
+      const heroCovered = or.top <= hr.top + 4 && or.bottom >= hr.bottom - 4;
+      return {
+        opaque: cs.backgroundColor,
+        heroCovered,
+        overlayCovers: or.height >= innerHeight * 0.5,
+      };
+    });
+    if (!bleed || !bleed.heroCovered || bleed.opaque !== 'rgb(11, 12, 16)') {
+      throw new Error(`menu overlay @ ${vp.width}: ${JSON.stringify(bleed)}`);
+    }
+    await p.screenshot({ path, fullPage: true });
+  });
+}
+
 await browser.close();
 console.log(JSON.stringify({ layout, tilesFit, widgetWidths, verify: 'ok' }, null, 2));

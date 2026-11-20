@@ -24,7 +24,7 @@
   <link rel="icon" href="assets/favicon.png" type="image/png" sizes="64x64">
   <link rel="icon" href="assets/favicon-32.png" type="image/png" sizes="32x32">
   <link rel="apple-touch-icon" href="assets/favicon.png">
-  <link rel="stylesheet" href="styles.css?v=20261123a">
+  <link rel="stylesheet" href="styles.css?v=20261123b">
 </head>
 <body>
   <header class="site-nav">
@@ -33,7 +33,7 @@
         <span class="logo-mark" aria-hidden="true">C</span>
         Convexa
       </a>
-      <button type="button" class="nav-menu-btn" id="nav-menu-btn" aria-expanded="false" aria-controls="nav-mobile-panel" aria-haspopup="true">
+      <button type="button" class="nav-menu-btn" id="nav-menu-btn" aria-expanded="false" aria-controls="nav-mobile-overlay" aria-haspopup="true" aria-label="Open menu">
         <span class="nav-menu-btn-label">Menu</span>
         <span class="nav-menu-icon" aria-hidden="true"></span>
       </button>
@@ -42,15 +42,18 @@
         <a href="#how">How it’s calculated</a>
         <a href="#privacy">Privacy</a>
       </nav>
-      <div id="nav-mobile-panel" class="nav-mobile-panel" role="dialog" aria-modal="true" aria-labelledby="nav-menu-btn" hidden>
-        <nav class="nav-mobile-links" aria-label="Page sections">
-          <a href="#screens">Screens</a>
-          <a href="#how">How it’s calculated</a>
-          <a href="#privacy">Privacy</a>
-        </nav>
-      </div>
     </div>
   </header>
+  <div id="nav-mobile-overlay" class="nav-mobile-overlay" role="dialog" aria-modal="true" aria-labelledby="nav-menu-btn" hidden>
+    <button type="button" class="nav-mobile-scrim" id="nav-mobile-scrim" tabindex="-1" aria-label="Close menu"></button>
+    <div id="nav-mobile-panel" class="nav-mobile-panel">
+      <nav class="nav-mobile-links" aria-label="Page sections">
+        <a href="#screens">Screens</a>
+        <a href="#how">How it’s calculated</a>
+        <a href="#privacy">Privacy</a>
+      </nav>
+    </div>
+  </div>
 
   <header class="hero" id="top">
     <div class="wrap-hero">
@@ -495,21 +498,27 @@
   <script>
     (() => {
       const btn = document.getElementById('nav-menu-btn');
-      const panel = document.getElementById('nav-mobile-panel');
-      if (!btn || !panel) return;
-      const links = panel.querySelectorAll('a');
+      const overlay = document.getElementById('nav-mobile-overlay');
+      const scrim = document.getElementById('nav-mobile-scrim');
+      const label = btn?.querySelector('.nav-menu-btn-label');
+      if (!btn || !overlay) return;
+      const links = overlay.querySelectorAll('.nav-mobile-links a');
       const mq = window.matchMedia('(max-width: 900px)');
 
       function closeMenu() {
         btn.setAttribute('aria-expanded', 'false');
-        panel.hidden = true;
+        btn.setAttribute('aria-label', 'Open menu');
+        if (label) label.textContent = 'Menu';
+        overlay.hidden = true;
         document.documentElement.classList.remove('nav-menu-open');
       }
 
       function openMenu() {
         if (!mq.matches) return;
         btn.setAttribute('aria-expanded', 'true');
-        panel.hidden = false;
+        btn.setAttribute('aria-label', 'Close menu');
+        if (label) label.textContent = 'Close';
+        overlay.hidden = false;
         document.documentElement.classList.add('nav-menu-open');
         links[0]?.focus();
       }
@@ -520,10 +529,11 @@
       }
 
       btn.addEventListener('click', toggleMenu);
+      scrim?.addEventListener('click', closeMenu);
       links.forEach((a) => {
         a.addEventListener('click', closeMenu);
       });
-      panel.addEventListener('keydown', (e) => {
+      overlay.addEventListener('keydown', (e) => {
         if (e.key === 'Escape') {
           closeMenu();
           btn.focus();
