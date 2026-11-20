@@ -184,8 +184,11 @@ for (const [suffix, vp] of [
 
 for (const [suffix, vp] of [
   ['-1440', { width: 1440, height: 900 }],
+  ['-1366', { width: 1366, height: 900 }],
   ['-1280', { width: 1280, height: 900 }],
+  ['-1152', { width: 1152, height: 900 }],
   ['-1024', { width: 1024, height: 900 }],
+  ['-768', { width: 768, height: 1024 }],
   ['-390', { width: 390, height: 844 }],
 ]) {
   await shot(vp, `hero-devices${suffix}.png`, async (p, path) => {
@@ -194,6 +197,19 @@ for (const [suffix, vp] of [
     const issues = await layoutChecks(p, vp.width);
     if (issues.length) throw new Error(`hero ${suffix}: ${JSON.stringify(issues)}`);
     await p.locator('header.hero').screenshot({ path });
+  });
+}
+
+for (const [suffix, vp] of [
+  ['', { width: 1440, height: 900 }],
+  ['-390', { width: 390, height: 844 }],
+]) {
+  await shot(vp, `section-06-lock-screen${suffix}.png`, async (p, path) => {
+    await p.goto(BASE + '/#lock-screen', { waitUntil: 'networkidle' });
+    await primeImages(p, '#lock-screen');
+    const issues = await layoutChecks(p, vp.width);
+    if (issues.length) throw new Error(`§06 ${suffix}: ${JSON.stringify(issues)}`);
+    await p.locator('#lock-screen').screenshot({ path });
   });
 }
 
