@@ -17,9 +17,13 @@ DNS, Cloudflare Access, the existing `convexa-web` worker, and the
 npx wrangler dev
 ```
 
-The site lives in `public/`: `index.html`, `styles.css`, and optimized
-WebP assets. Source device screenshots (PNG) used to build those assets
-are kept under `screens/` for reference.
+The site lives in `public/`: `index.html`, `styles.css`, self-hosted
+Inter fonts under `public/assets/fonts/`, optimized WebP screenshots
+under `public/assets/`, and official Apple Product Bezel artwork under `public/assets/bezels/`
+(see `LICENSE-NOTES.txt` and `MEASUREMENTS.txt` in that folder; screen
+insets are percentages on `.device--iphone-16-pro-max` / `.device--watch-s10`).
+Source device PNGs are under
+`screens/` (swap a PNG, regenerate WebP, commit).
 
 ## Deploy
 
