@@ -107,6 +107,36 @@ export async function assertGalleryHeader(page, vw) {
 }
 
 /** @param {import('playwright').Page} page */
+export async function assertHeroShowcaseAlignment(page, vw) {
+  if (vw < 1024 || vw > 1440) return;
+  const data = await page.evaluate(() => {
+    const hero = document.querySelector('.hero--showcase, .hero--variant-b');
+    const logo = document.querySelector('.site-nav .logo');
+    const heroCopy = hero?.querySelector('.hero-copy');
+    const privacy = document.querySelector('.nav-links a[href="#privacy"]');
+    const device = hero?.querySelector('.device--hero-home');
+    const wrap = document.querySelector('.site-nav .wrap');
+    if (!hero || !logo || !heroCopy || !device) return { skip: true };
+    const logoLeft = logo.getBoundingClientRect().left;
+    const copyLeft = heroCopy.getBoundingClientRect().left;
+    const deviceRight = device.getBoundingClientRect().right;
+    const navRight = privacy?.getBoundingClientRect().right ?? wrap?.getBoundingClientRect().right;
+    return {
+      textDelta: Math.abs(logoLeft - copyLeft),
+      deviceRight,
+      navRight,
+    };
+  });
+  if (data.skip) return;
+  if (data.textDelta > 2) {
+    throw new Error(`hero copy not aligned with logo: Δ${data.textDelta}px @ ${vw}`);
+  }
+  if (data.navRight != null && data.deviceRight > data.navRight + 2) {
+    throw new Error(`hero phone past nav right @ ${vw}: device ${data.deviceRight} > nav ${data.navRight}`);
+  }
+}
+
+/** @param {import('playwright').Page} page */
 export async function assertBentoRowHeights(page, vw) {
   if (vw < 1024) return;
   const diff = await page.evaluate(() => {

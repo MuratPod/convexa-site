@@ -6,6 +6,7 @@ import {
   assertWatchTextFits,
   assertGalleryHeader,
   assertBentoRowHeights,
+  assertHeroShowcaseAlignment,
 } from './capture-assertions.mjs';
 
 const BASE = process.env.BASE_URL || 'http://127.0.0.1:8787';
@@ -32,7 +33,7 @@ async function widgetImgWidths(page) {
 function minForWidget(w, row) {
   const isMedium = String(row.cls).includes('medium');
   if (row.bento && w >= 1280) {
-    return isMedium ? 360 : 170;
+    return isMedium ? 420 : 200;
   }
   if (row.bento && w >= 1024) {
     return isMedium ? 340 : 160;
@@ -274,6 +275,9 @@ for (const w of widths) {
   }
   if (w >= 1024) {
     await assertBentoRowHeights(page, w);
+  }
+  if ([1024, 1280, 1366, 1440].includes(w)) {
+    await assertHeroShowcaseAlignment(page, w);
   }
   const issues = await layoutChecks(page, w);
   const tileIssues = await tilesChildrenFit(page);

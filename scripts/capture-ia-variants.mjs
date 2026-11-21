@@ -4,6 +4,7 @@ import {
   assertWatchTextFits,
   assertGalleryHeader,
   assertBentoRowHeights,
+  assertHeroShowcaseAlignment,
 } from './capture-assertions.mjs';
 
 const BASE = process.env.BASE_URL || 'http://127.0.0.1:8787';
@@ -49,6 +50,7 @@ for (const path of paths) {
     if (path === '/' || path === '/b/') {
       await assertGalleryHeader(page, w);
       await assertBentoRowHeights(page, w);
+      await assertHeroShowcaseAlignment(page, w);
     }
 
     if (path === '/a/' && w >= 1024) {

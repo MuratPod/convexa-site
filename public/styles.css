@@ -1414,17 +1414,52 @@ html.nav-menu-open .site-nav {
 
 /* ——— Gallery + bento (production IA) ——— */
 
-.hero--showcase .hero-stage {
+.hero--showcase .hero-stage,
+.hero--variant-b .hero-stage {
   justify-content: center;
 }
 
 @media (min-width: 901px) {
-  .hero--showcase .hero-stage {
+  .hero--showcase .hero-grid,
+  .hero--variant-b .hero-grid {
+    grid-template-columns: minmax(0, 55fr) minmax(0, 45fr);
+    grid-template-rows: auto;
+    gap: clamp(24px, 3vw, 40px);
+    align-items: center;
+  }
+
+  .hero--showcase .hero-copy,
+  .hero--variant-b .hero-copy {
+    grid-column: 1;
+    grid-row: 1;
+    padding-top: 0;
+    align-self: center;
+    max-width: none;
+    margin-inline: 0;
+    text-align: left;
+  }
+
+  .hero--showcase .hero-stage,
+  .hero--variant-b .hero-stage {
+    grid-column: 2;
+    grid-row: 1;
     display: flex;
     justify-content: flex-end;
-    align-items: flex-end;
-    grid-template-columns: unset;
-    grid-template-rows: unset;
+    align-items: center;
+    width: 100%;
+    max-width: 100%;
+    margin-inline: 0;
+  }
+
+  .hero--showcase .device--hero-home,
+  .hero--variant-b .device--hero-home {
+    --device-width: clamp(280px, 22vw, 340px);
+  }
+
+  .hero--showcase .chips,
+  .hero--variant-b .chips {
+    justify-content: flex-start;
+    flex-wrap: wrap;
   }
 }
 
@@ -1675,14 +1710,19 @@ html.nav-menu-open .site-nav {
 #island-widgets.bento-tile .tiles,
 .bento-island .bento-tiles-wrap.tiles {
   width: 100%;
-  gap: clamp(20px, 3vw, 36px);
-  padding: clamp(20px, 2.5vw, 28px) clamp(16px, 2vw, 24px);
+  gap: 28px;
+  padding: 20px clamp(16px, 2vw, 22px) 22px;
+}
+
+.bento-island .tiles > img.tile-island-compact,
+.bento-island .tiles > img.tile-island-expanded {
+  margin: 0;
 }
 
 @media (min-width: 1024px) {
   .bento-island .bento-tiles-wrap.tiles {
     --widget-gap: 18px;
-    gap: clamp(24px, 2.5vw, 36px);
+    gap: 32px;
   }
 
   .bento-island .tile-row {
@@ -1691,12 +1731,17 @@ html.nav-menu-open .site-nav {
 }
 
 @media (min-width: 1280px) {
+  .bento-island .bento-tiles-wrap.tiles {
+    gap: 36px;
+    --widget-gap: 20px;
+  }
+
   .bento-island .tile-row {
-    --widget-unit: 170px;
+    --widget-unit: 200px;
   }
 
   .bento-island .tile-widget-medium {
-    width: 360px;
+    width: 420px;
     max-width: 100%;
   }
 }
