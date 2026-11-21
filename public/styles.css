@@ -1735,11 +1735,52 @@ html.nav-menu-open .site-nav {
   .bento-slide-island .bento-tiles-wrap--island-only,
   .bento-slide-widgets .bento-tiles-wrap--widgets-only {
     max-width: 100%;
+    width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+  }
+
+  .bento-slide-island .bento-tiles-wrap.tiles {
+    padding: 12px 0 16px;
+    background: transparent;
+    border: none;
+    overflow: visible;
+    container-type: inline-size;
+  }
+
+  .bento-slide-widgets .bento-tiles-wrap.tiles {
+    padding: 12px 0 16px;
+    background: transparent;
+    border: none;
+    overflow: visible;
+    container-type: inline-size;
   }
 
   .bento-slide-widgets .tile-row {
-    justify-content: center;
-    --widget-unit: min(148px, 38vw);
+    flex-direction: column;
+    align-items: center;
+    width: 100%;
+    max-width: 100%;
+    gap: 16px;
+    --widget-unit: unset;
+  }
+
+  .bento-slide-widgets .tile-widget-small,
+  .bento-slide-widgets .tile-widget-medium {
+    display: block;
+    width: 100%;
+    max-width: min(100cqw, 100%);
+    height: auto;
+    flex: 0 0 auto;
+    object-fit: contain;
+  }
+
+  .bento-slide-island .tile-island-compact,
+  .bento-slide-island .tile-island-expanded {
+    width: 100%;
+    max-width: min(100cqw, 100%);
+    height: auto;
+    object-fit: contain;
   }
 
   .bento-watch-disclaimer {

@@ -11,41 +11,34 @@
   function initHorizontalCarousel(track, opts) {
     const { prev, next, dots, slideSelector } = opts;
 
+    const reduceMotionMq = window.matchMedia('(prefers-reduced-motion: reduce)');
+
+    function preferInstantScroll() {
+      return reduceMotionMq.matches;
+    }
+
     function visibleSlides() {
       return [...track.querySelectorAll(slideSelector)].filter(
         (el) => el.getBoundingClientRect().width > 0,
       );
     }
 
-    function slideStep() {
-      const slides = visibleSlides();
-      const slide = slides[0];
-      if (!slide) return track.clientWidth * 0.85;
-      const gap = Number.parseFloat(getComputedStyle(track).columnGap || getComputedStyle(track).gap) || 20;
-      return slide.offsetWidth + gap;
-    }
-
-    function scrollByDir(dir) {
-      track.scrollBy({ left: dir * slideStep(), behavior: 'smooth' });
-    }
-
-    function scrollToIndex(index) {
-      const slides = visibleSlides();
-      const slide = slides[index];
-      if (!slide) return;
-      const pad = Number.parseFloat(getComputedStyle(track).scrollPaddingInlineStart || getComputedStyle(track).scrollPaddingLeft) || 0;
-      track.scrollTo({ left: slide.offsetLeft - pad, behavior: 'smooth' });
+    function scrollPaddingStart() {
+      return Number.parseFloat(
+        getComputedStyle(track).scrollPaddingInlineStart
+        || getComputedStyle(track).scrollPaddingLeft,
+      ) || 0;
     }
 
     function activeIndex() {
       const slides = visibleSlides();
       if (!slides.length) return 0;
-      const pad = Number.parseFloat(getComputedStyle(track).scrollPaddingInlineStart || getComputedStyle(track).scrollPaddingLeft) || 0;
-      const center = track.scrollLeft + pad + track.clientWidth * 0.2;
+      const pad = scrollPaddingStart();
+      const anchor = track.scrollLeft + pad;
       let idx = 0;
       let best = Infinity;
       slides.forEach((slide, i) => {
-        const d = Math.abs(slide.offsetLeft - center);
+        const d = Math.abs(slide.offsetLeft - anchor);
         if (d < best) {
           best = d;
           idx = i;
@@ -54,9 +47,38 @@
       return idx;
     }
 
+    let targetIndex = activeIndex();
+    let scrollSettleTimer = 0;
+
+    function scrollLeftForIndex(index) {
+      const slides = visibleSlides();
+      const slide = slides[index];
+      if (!slide) return null;
+      return Math.max(0, slide.offsetLeft - scrollPaddingStart());
+    }
+
+    function applyScrollToIndex(index, behaviorOverride) {
+      const slides = visibleSlides();
+      if (!slides.length) return;
+      const clamped = Math.max(0, Math.min(slides.length - 1, index));
+      targetIndex = clamped;
+      const left = scrollLeftForIndex(clamped);
+      if (left == null) return;
+      const behavior = behaviorOverride ?? (preferInstantScroll() ? 'auto' : 'smooth');
+      track.scrollTo({ left, behavior });
+      syncDots();
+    }
+
+    function stepTarget(dir) {
+      const slides = visibleSlides();
+      if (!slides.length) return;
+      targetIndex = Math.max(0, Math.min(slides.length - 1, targetIndex + dir));
+      applyScrollToIndex(targetIndex);
+    }
+
     function syncDots() {
       if (!dots) return;
-      const idx = activeIndex();
+      const idx = targetIndex;
       dots.querySelectorAll('[data-carousel-dot]').forEach((btn, i) => {
         const on = i === idx;
         btn.setAttribute('aria-selected', on ? 'true' : 'false');
@@ -83,50 +105,69 @@
           btn.setAttribute('aria-selected', 'false');
           btn.tabIndex = -1;
         }
-        btn.addEventListener('click', () => scrollToIndex(i));
+        btn.addEventListener('click', () => applyScrollToIndex(i));
         dots.append(btn);
       });
     }
 
-    prev?.addEventListener('click', () => scrollByDir(-1));
-    next?.addEventListener('click', () => scrollByDir(1));
+    function onScrollSettled() {
+      targetIndex = activeIndex();
+      syncDots();
+    }
+
+    function scheduleScrollSettled() {
+      if (scrollSettleTimer) window.clearTimeout(scrollSettleTimer);
+      scrollSettleTimer = window.setTimeout(() => {
+        scrollSettleTimer = 0;
+        onScrollSettled();
+      }, 120);
+    }
+
+    prev?.addEventListener('click', () => stepTarget(-1));
+    next?.addEventListener('click', () => stepTarget(1));
 
     track.addEventListener('keydown', (e) => {
       if (e.key === 'ArrowLeft') {
         e.preventDefault();
-        scrollByDir(-1);
+        stepTarget(-1);
       }
       if (e.key === 'ArrowRight') {
         e.preventDefault();
-        scrollByDir(1);
+        stepTarget(1);
       }
       if (dots && (e.key === 'Home' || e.key === 'End')) {
         const slides = visibleSlides();
         if (!slides.length) return;
         e.preventDefault();
-        scrollToIndex(e.key === 'Home' ? 0 : slides.length - 1);
+        applyScrollToIndex(e.key === 'Home' ? 0 : slides.length - 1);
       }
     });
 
-    let dotRaf = 0;
     track.addEventListener('scroll', () => {
-      if (dotRaf) cancelAnimationFrame(dotRaf);
-      dotRaf = requestAnimationFrame(() => {
-        dotRaf = 0;
-        syncDots();
-      });
+      scheduleScrollSettled();
     }, { passive: true });
+
+    if ('onscrollend' in track) {
+      track.addEventListener('scrollend', onScrollSettled, { passive: true });
+    }
 
     buildDots();
     syncDots();
 
-    const mq = window.matchMedia('(min-width: 1024px)');
-    const onMq = () => {
+    const layoutMq = window.matchMedia('(min-width: 1024px)');
+    const onLayout = () => {
+      targetIndex = activeIndex();
       if (dots) buildDots();
       syncDots();
     };
-    if (typeof mq.addEventListener === 'function') mq.addEventListener('change', onMq);
-    else mq.addListener(onMq);
+    if (typeof layoutMq.addEventListener === 'function') layoutMq.addEventListener('change', onLayout);
+    else layoutMq.addListener(onLayout);
+
+    if (typeof reduceMotionMq.addEventListener === 'function') {
+      reduceMotionMq.addEventListener('change', onScrollSettled);
+    } else {
+      reduceMotionMq.addListener(onScrollSettled);
+    }
   }
 
   const galleryTrack = document.getElementById('gallery-track');

@@ -395,15 +395,18 @@ export async function assertWatchTextFits(page) {
   const bad = await page.evaluate(() => {
     const issues = [];
     for (const root of document.querySelectorAll('.watch-ui-canvas')) {
-      for (const el of root.querySelectorAll('.watch-nlv, .watch-day, .tick-nums, .watch-smile-title, .watch-top-time, .watch-fresh')) {
+      const screen = root.closest('.device-screen');
+      const screenBox = screen?.getBoundingClientRect();
+      for (const el of root.querySelectorAll('.watch-nlv, .watch-day, .tick-nums, .watch-smile-title, .watch-fresh')) {
         const text = (el.textContent || '').trim();
         if (!text) continue;
-        if (el.scrollWidth > el.clientWidth + 1) {
+        const er = el.getBoundingClientRect();
+        if (screenBox && (er.right > screenBox.right + 1.5 || er.left < screenBox.left - 1.5)) {
           issues.push({
             cls: el.className,
-            sw: el.scrollWidth,
-            cw: el.clientWidth,
             text: text.slice(0, 28),
+            er: { l: er.left, r: er.right },
+            screen: { l: screenBox.left, r: screenBox.right },
           });
         }
       }
@@ -412,5 +415,117 @@ export async function assertWatchTextFits(page) {
   });
   if (bad.length) {
     throw new Error(`watch text overflow: ${JSON.stringify(bad)}`);
+  }
+}
+
+/** @param {import('playwright').Page} page */
+export async function assertBentoSlideImagesContained(page, vw) {
+  if (![360, 390, 768].includes(vw)) return;
+  const bad = await page.evaluate(() => {
+    const issues = [];
+    const slides = [...document.querySelectorAll('.bento-carousel-slide')].filter(
+      (el) => getComputedStyle(el).display !== 'none',
+    );
+    for (const slide of slides) {
+      const st = getComputedStyle(slide);
+      const padL = Number.parseFloat(st.paddingLeft) || 0;
+      const padR = Number.parseFloat(st.paddingRight) || 0;
+      const padT = Number.parseFloat(st.paddingTop) || 0;
+      const padB = Number.parseFloat(st.paddingBottom) || 0;
+      const sr = slide.getBoundingClientRect();
+      const box = {
+        left: sr.left + padL,
+        right: sr.right - padR,
+        top: sr.top + padT,
+        bottom: sr.bottom - padB,
+      };
+      for (const img of slide.querySelectorAll('img')) {
+        if (!img.offsetParent && img.getBoundingClientRect().width < 1) continue;
+        const ir = img.getBoundingClientRect();
+        if (ir.width < 2) continue;
+        if (
+          ir.left < box.left - 1.5
+          || ir.right > box.right + 1.5
+          || ir.top < box.top - 1.5
+          || ir.bottom > box.bottom + 1.5
+        ) {
+          issues.push({
+            slide: slide.getAttribute('aria-label') || slide.className,
+            src: (img.getAttribute('src') || '').split('/').pop(),
+            img: { l: ir.left, r: ir.right, t: ir.top, b: ir.bottom },
+            box,
+          });
+        }
+      }
+    }
+    return issues;
+  });
+  if (bad.length) {
+    throw new Error(`bento slide image bleed @ ${vw}: ${JSON.stringify(bad)}`);
+  }
+}
+
+/** @param {import('playwright').Page} page */
+export async function assertGalleryRapidNextToSettings(page, vw) {
+  if (vw !== 1440) return;
+  await page.evaluate(() => {
+    const track = document.getElementById('gallery-track');
+    if (track) track.scrollTo({ left: 0, behavior: 'auto' });
+  });
+  await page.waitForTimeout(120);
+  const next = page.locator('#gallery-next');
+  for (let i = 0; i < 5; i += 1) {
+    await next.click({ noWaitAfter: true });
+  }
+  await page.waitForTimeout(1000);
+  const bad = await page.evaluate(async () => {
+    const track = document.getElementById('gallery-track');
+    const slides = [...document.querySelectorAll('.gallery-slide')];
+    const last = slides[slides.length - 1];
+    const img = last?.querySelector('.device-screen img');
+    if (!track || !last || !img) return { err: 'missing gallery slide/img' };
+    const tr = track.getBoundingClientRect();
+    const pad = Number.parseFloat(getComputedStyle(track).scrollPaddingInlineStart) || 0;
+    const viewportLeft = tr.left + pad;
+    const viewportRight = tr.right;
+    const sr = last.getBoundingClientRect();
+    const inFrame = sr.left >= viewportLeft - 4 && sr.right <= viewportRight + 4;
+    const loaded = img.complete && img.naturalWidth > 0;
+    let meanLuma = 0;
+    if (loaded) {
+      const w = img.naturalWidth;
+      const h = img.naturalHeight;
+      const c = document.createElement('canvas');
+      c.width = Math.min(80, w);
+      c.height = Math.min(120, h);
+      const ctx = c.getContext('2d');
+      if (ctx) {
+        ctx.drawImage(img, w * 0.35, h * 0.2, w * 0.3, h * 0.35, 0, 0, c.width, c.height);
+        const { data } = ctx.getImageData(0, 0, c.width, c.height);
+        let sum = 0;
+        let n = 0;
+        for (let i = 0; i < data.length; i += 4) {
+          sum += 0.2126 * data[i] + 0.7152 * data[i + 1] + 0.0722 * data[i + 2];
+          n += 1;
+        }
+        meanLuma = n ? sum / n : 0;
+      }
+    }
+    return {
+      inFrame,
+      loaded,
+      meanLuma,
+      scrollLeft: track.scrollLeft,
+      maxScroll: track.scrollWidth - track.clientWidth,
+      slide: { l: sr.left, r: sr.right },
+      view: { l: viewportLeft, r: viewportRight },
+    };
+  });
+  if (bad.err) throw new Error(`gallery rapid next @ ${vw}: ${bad.err}`);
+  if (!bad.inFrame) {
+    throw new Error(`Settings slide not in frame after 5× next @ ${vw}: ${JSON.stringify(bad)}`);
+  }
+  if (!bad.loaded || bad.meanLuma < 12) {
+    throw new Error(`Settings screen black/unloaded after 5× next @ ${vw}: ${JSON.stringify(bad)}`);
   }
 }
