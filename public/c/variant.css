@@ -1,0 +1,255 @@
+/* Variant C — tabbed screens + ecosystem row */
+
+.tabs-section {
+  padding-top: 8px;
+}
+
+.tabs-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(300px, 420px);
+  grid-template-areas:
+    "tabs tabs"
+    "phone copy";
+  gap: clamp(28px, 4vw, 56px);
+  align-items: start;
+}
+
+.tablist-wrap {
+  grid-area: tabs;
+}
+
+.tabs-phone-col {
+  grid-area: phone;
+}
+
+.tabs-copy-col {
+  grid-area: copy;
+}
+
+.tabs-phone-col {
+  text-align: center;
+}
+
+.tabs-phone-col .device--section {
+  --device-width: min(400px, 92vw);
+  margin-inline: auto;
+}
+
+.tablist-wrap {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  margin-bottom: 28px;
+  padding-bottom: 4px;
+  scrollbar-width: none;
+}
+
+.tablist-wrap::-webkit-scrollbar {
+  display: none;
+}
+
+[role="tablist"].tabs-pills {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 10px;
+  min-width: min-content;
+}
+
+[role="tab"].tabs-pill {
+  flex: 0 0 auto;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 12px 20px;
+  background: var(--s1);
+  color: var(--tx2);
+  font: inherit;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+[role="tab"].tabs-pill[aria-selected="true"] {
+  border-color: var(--blue);
+  background: rgba(107, 163, 255, 0.12);
+  color: var(--tx);
+}
+
+[role="tab"].tabs-pill:focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: 2px;
+}
+
+.tab-panel h2 {
+  margin: 0 0 16px;
+  font-size: clamp(26px, 3vw, 34px);
+  line-height: 1.15;
+  font-weight: 800;
+}
+
+.tab-panel .sec-num {
+  margin-bottom: 10px;
+}
+
+.tab-panel p {
+  color: var(--tx2);
+  margin: 0 0 12px;
+}
+
+.tab-panel .facts {
+  margin: 16px 0 0;
+  padding-left: 1.25em;
+  color: var(--tx2);
+}
+
+.tab-panel[hidden] {
+  display: none !important;
+}
+
+.tabs-phone-stack {
+  position: relative;
+}
+
+.tabs-phone-stack img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: top center;
+}
+
+@media (max-width: 900px) {
+  .tabs-layout {
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      "tabs"
+      "phone"
+      "copy";
+  }
+}
+
+/* Ecosystem */
+.eco-section {
+  border-top: 1px solid var(--line);
+  background: rgba(22, 23, 29, 0.35);
+}
+
+.eco-row {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: clamp(20px, 3vw, 40px);
+  align-items: start;
+}
+
+.eco-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+.eco-item h3 {
+  margin: 18px 0 8px;
+  font-size: 20px;
+  font-weight: 700;
+}
+
+.eco-item p {
+  margin: 0;
+  font-size: 16px;
+  color: var(--tx2);
+  max-width: 22em;
+}
+
+.eco-lock .device--section {
+  --device-width: 260px;
+}
+
+.eco-watch .device--section-watch {
+  --device-width: 196px;
+}
+
+.eco-tiles.tiles {
+  --widget-unit: min(152px, 32vw);
+  width: 100%;
+  max-width: 420px;
+}
+
+.device-screen--lock-ios {
+  background: #000;
+}
+
+.device-screen--lock-ios .lock-ios-wallpaper {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+}
+
+.device-screen--lock-ios .lock-ios-la {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 90.45%;
+  height: auto;
+  z-index: 2;
+}
+
+.device-screen--lock-ios .lock-ios-la--two-lines {
+  bottom: 14.8%;
+}
+
+.lock-ios-shortcuts {
+  position: absolute;
+  bottom: 5.2%;
+  left: 0;
+  right: 0;
+  display: flex;
+  justify-content: space-between;
+  padding: 0 8.5%;
+  z-index: 1;
+  pointer-events: none;
+}
+
+.lock-ios-ctl {
+  display: grid;
+  place-items: center;
+  width: 11.5%;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.45);
+  color: rgba(255, 255, 255, 0.92);
+}
+
+.lock-ios-ctl svg {
+  width: 52%;
+  height: 52%;
+}
+
+.lock-ios-home-indicator {
+  position: absolute;
+  bottom: 1.35%;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 36%;
+  height: 0.45%;
+  min-height: 4px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.88);
+  z-index: 3;
+}
+
+@media (max-width: 1000px) {
+  .eco-row {
+    grid-template-columns: 1fr;
+    gap: 48px;
+  }
+}
+
+@media (min-width: 1440px) {
+  .eco-row {
+    max-width: 1400px;
+    margin-inline: auto;
+  }
+}

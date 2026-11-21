@@ -47,7 +47,28 @@ await sharp(join(screensDir, '08-lock-compact-398.png'))
   .toFile(compactCardOut);
 console.log(`08-lock-compact-card-3x.webp ${compactCard.width}x${compactCard.height}`);
 
-const keep = new Set([...map.map(([, d]) => d), '08-lock-compact-card-3x.webp', 'og.webp', 'favicon.png', 'favicon-32.png', 'og.png']);
+const lockWallH = 2480;
+for (const [src, dest] of [
+  ['09-lock-two-lines-398.png', 'lock-wallpaper-two-lines.webp'],
+  ['08-lock-compact-398.png', 'lock-wallpaper-compact.webp'],
+]) {
+  await sharp(join(screensDir, src))
+    .extract({ left: 0, top: 0, width: 1320, height: lockWallH })
+    .webp({ quality })
+    .toFile(join(outDir, dest));
+  console.log(`${dest} 1320x${lockWallH}`);
+}
+
+const keep = new Set([
+  ...map.map(([, d]) => d),
+  '08-lock-compact-card-3x.webp',
+  'lock-wallpaper-two-lines.webp',
+  'lock-wallpaper-compact.webp',
+  'og.webp',
+  'favicon.png',
+  'favicon-32.png',
+  'og.png',
+]);
 for (const f of readdirSync(outDir)) {
   if (f.endsWith('.webp') && !keep.has(f) && !f.startsWith('.')) {
     unlinkSync(join(outDir, f));
