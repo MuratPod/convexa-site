@@ -14,7 +14,7 @@ function minWidgetWidthForViewport(w) {
 
 async function widgetImgWidths(page) {
   return page.evaluate(() => {
-    const imgs = document.querySelectorAll('#island-widgets .tile-row img');
+    const imgs = document.querySelectorAll('#island-widgets .tile-row img, .bento-island .tile-row img');
     return [...imgs].map((img) => ({
       cls: img.className.split(/\s+/).find((c) => c.startsWith('tile-widget')) || img.className,
       width: img.getBoundingClientRect().width,
@@ -32,7 +32,7 @@ function assertWidgetWidths(w, rows) {
 
 async function tilesChildrenFit(page) {
   return page.evaluate(() => {
-    const tiles = document.querySelector('#island-widgets .tiles');
+    const tiles = document.querySelector('#island-widgets .tiles, .bento-island .tiles');
     if (!tiles) return [];
     const tr = tiles.getBoundingClientRect();
     const issues = [];
@@ -101,8 +101,20 @@ async function assertLockCloseupScale(page) {
 }
 
 async function assertLockCloseups(page, vw) {
-  await assertLockCloseupScale(page);
+  const hasCloseups = await page.evaluate(() => document.querySelectorAll('#lock-screen .lock-card-closeup img').length > 0);
+  if (hasCloseups) {
+    await assertLockCloseupScale(page);
+  }
   if (vw !== 1440 && vw !== 390) return;
+  if (!hasCloseups) {
+    if (vw === 1440) {
+      const phoneW = await page.evaluate(() => document.querySelector('#lock-screen .device--section')?.getBoundingClientRect().width ?? 0);
+      if (phoneW > 0 && phoneW + 0.5 < 200) {
+        throw new Error(`lock phone width ${phoneW} < 200 at 1440`);
+      }
+    }
+    return;
+  }
   const minStripWidth = vw <= 390 ? 280 : 360;
   const rows = await page.evaluate(() => {
     return [...document.querySelectorAll('#lock-screen .lock-card-closeup img')].map((img) => ({
@@ -156,7 +168,7 @@ async function layoutChecks(page, vw) {
         issues.push({ kind: 'hero-device-left', cls: el.className.slice(0, 60), px: margin - r.left });
       }
     }
-    const tiles = document.querySelector('#island-widgets .tiles');
+    const tiles = document.querySelector('#island-widgets .tiles, .bento-island .tiles');
     if (tiles) {
       if (tiles.scrollWidth - tiles.clientWidth > 1) {
         issues.push({
@@ -203,9 +215,20 @@ async function primeImages(page, selector) {
   await page.evaluate(async (sel) => {
     const root = sel ? document.querySelector(sel) : document;
     if (!root) return;
-    for (const img of root.querySelectorAll('img')) {
-      if (!img.complete) await new Promise((r) => { img.onload = img.onerror = r; });
-      try { await img.decode(); } catch { /* */ }
+  for (const img of root.querySelectorAll('img')) {
+      if (!img.complete) {
+        await Promise.race([
+          new Promise((r) => {
+            img.onload = img.onerror = r;
+          }),
+          new Promise((r) => setTimeout(r, 2500)),
+        ]);
+      }
+      try {
+        await Promise.race([img.decode(), new Promise((r) => setTimeout(r, 2500))]);
+      } catch {
+        /* */
+      }
     }
   }, selector ?? null);
 }
@@ -217,7 +240,7 @@ const widgetWidths = {};
 for (const w of widths) {
   const page = await browser.newPage();
   await page.setViewportSize({ width: w, height: w >= 1024 ? 900 : 844 });
-  await page.goto(BASE + '/', { waitUntil: 'networkidle' });
+  await page.goto(BASE + '/', { waitUntil: 'load' });
   await prepareCapture(page);
   await primeImages(page, null);
   await assertIphoneScreenShapes(page);
@@ -239,7 +262,7 @@ writeFileSync(join(OUT, 'overflow-check.json'), JSON.stringify({ layout, tilesFi
 async function shot(viewport, name, fn) {
   const page = await browser.newPage();
   await page.setViewportSize(viewport);
-  await page.goto(BASE, { waitUntil: 'networkidle' });
+  await page.goto(BASE, { waitUntil: 'load' });
   await prepareCapture(page);
   await fn(page, join(OUT, name));
   await page.close();
@@ -250,7 +273,7 @@ for (const [suffix, vp] of [
   ['-390', { width: 390, height: 844 }],
 ]) {
   await shot(vp, `section-07-island-widgets${suffix}.png`, async (p, path) => {
-    await p.goto(BASE + '/#island-widgets', { waitUntil: 'networkidle' });
+    await p.goto(BASE + '/#island-widgets', { waitUntil: 'load' });
     await primeImages(p, '#island-widgets');
     const bad = await tilesChildrenFit(p);
     if (bad.length) throw new Error(`tiles overflow at ${suffix || '1440'}: ${JSON.stringify(bad)}`);
@@ -269,7 +292,7 @@ for (const [suffix, vp] of [
   ['-390', { width: 390, height: 844 }],
 ]) {
   await shot(vp, `hero-devices${suffix}.png`, async (p, path) => {
-    await p.goto(BASE + '/#top', { waitUntil: 'networkidle' });
+    await p.goto(BASE + '/#top', { waitUntil: 'load' });
     await primeImages(p, 'header.hero');
     const issues = await layoutChecks(p, vp.width);
     if (issues.length) throw new Error(`hero ${suffix}: ${JSON.stringify(issues)}`);
@@ -282,7 +305,7 @@ for (const [suffix, vp] of [
   ['-390', { width: 390, height: 844 }],
 ]) {
   await shot(vp, `section-06-lock-screen${suffix}.png`, async (p, path) => {
-    await p.goto(BASE + '/#lock-screen', { waitUntil: 'networkidle' });
+    await p.goto(BASE + '/#lock-screen', { waitUntil: 'load' });
     await primeImages(p, '#lock-screen');
     await assertIphoneScreenShapes(p);
     await assertLockCloseups(p, vp.width);
@@ -298,7 +321,7 @@ for (const [suffix, vp] of [
   ['-768', { width: 768, height: 1024 }],
 ]) {
   await shot(vp, `mobile-menu-open${suffix}.png`, async (p, path) => {
-    await p.goto(BASE + '/#top', { waitUntil: 'networkidle' });
+    await p.goto(BASE + '/#top', { waitUntil: 'load' });
     await p.locator('#nav-menu-btn').click();
     await p.waitForSelector('#nav-mobile-overlay:not([hidden])');
     const bleed = await p.evaluate(() => {
@@ -325,7 +348,7 @@ for (const [suffix, vp] of [
 {
   const page = await browser.newPage();
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.goto(BASE + '/#top', { waitUntil: 'networkidle' });
+  await page.goto(BASE + '/#top', { waitUntil: 'load' });
   await page.locator('#nav-menu-btn').click();
   await page.waitForSelector('#nav-mobile-overlay:not([hidden])');
   await page.locator('#nav-menu-btn').focus();

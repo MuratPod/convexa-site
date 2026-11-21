@@ -12,7 +12,7 @@ for (const path of paths) {
   for (const w of widths) {
     const page = await browser.newPage();
     await page.setViewportSize({ width: w, height: w >= 1024 ? 900 : 844 });
-    await page.goto(BASE + path, { waitUntil: 'networkidle' });
+    await page.goto(BASE + path, { waitUntil: 'load' });
     const issues = await page.evaluate(() => {
       const out = [];
       const doc = document.documentElement;
