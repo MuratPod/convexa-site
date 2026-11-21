@@ -6,6 +6,14 @@ const screensDir = '/workspace/screens';
 const outDir = '/workspace/public/assets';
 const quality = 90;
 
+/** Tight bounds of the black LA card in 09-lock-two-lines-card-3x.png (no baked margin). */
+const twoLinesCardCrop = {
+  left: 48,
+  top: 68,
+  width: 1098,
+  height: 225,
+};
+
 const map = [
   ['01-home-portfolio.png', '01-home.webp'],
   ['01-home-portfolio-bottom.png', '01-home-bottom.webp'],
@@ -19,7 +27,6 @@ const map = [
   ['07-settings-live-activity.png', '07-settings.webp'],
   ['08-lock-compact-398.png', '08-lock-compact.webp'],
   ['09-lock-two-lines-398.png', '09-lock-two-lines.webp'],
-  ['09-lock-two-lines-card-3x.png', '09-lock-card-3x.webp'],
   ['10-dynamic-island-compact.png', '10-island-compact.webp'],
   ['11-dynamic-island-expanded.png', '11-island-expanded.webp'],
   ['12-widget-small.png', '12-widget-small.webp'],
@@ -47,6 +54,13 @@ await sharp(join(screensDir, '08-lock-compact-398.png'))
   .toFile(compactCardOut);
 console.log(`08-lock-compact-card-3x.webp ${compactCard.width}x${compactCard.height}`);
 
+const twoLinesCardOut = join(outDir, '09-lock-card-3x.webp');
+await sharp(join(screensDir, '09-lock-two-lines-card-3x.png'))
+  .extract(twoLinesCardCrop)
+  .webp({ quality })
+  .toFile(twoLinesCardOut);
+console.log(`09-lock-card-3x.webp ${twoLinesCardCrop.width}x${twoLinesCardCrop.height}`);
+
 const lockWallH = 2480;
 for (const [src, dest] of [
   ['09-lock-two-lines-398.png', 'lock-wallpaper-two-lines.webp'],
@@ -61,6 +75,7 @@ for (const [src, dest] of [
 
 const keep = new Set([
   ...map.map(([, d]) => d),
+  '09-lock-card-3x.webp',
   '08-lock-compact-card-3x.webp',
   'lock-wallpaper-two-lines.webp',
   'lock-wallpaper-compact.webp',

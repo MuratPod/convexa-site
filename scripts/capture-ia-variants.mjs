@@ -34,6 +34,11 @@ for (const path of paths) {
       }
       return out;
     }, isVariantC);
+    const lock = page.locator('.device-screen--lock-ios').first();
+    if (await lock.count()) {
+      await lock.scrollIntoViewIfNeeded();
+      await page.waitForTimeout(40);
+    }
     await assertLockLiveActivityStrip(page);
     await assertWatchTextFits(page);
 

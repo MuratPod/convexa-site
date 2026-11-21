@@ -497,16 +497,17 @@ html.nav-menu-open .site-nav {
   position: absolute;
   left: 50%;
   transform: translateX(-50%);
-  width: 92%;
-  max-width: 92%;
+  width: 91.4%;
+  max-width: 91.4%;
   min-width: 0;
   min-height: 0;
   height: auto;
-  max-height: 24%;
   z-index: 2;
-  border-radius: 0;
+  border-radius: 5.53%;
+  overflow: hidden;
   object-fit: contain;
   object-position: center bottom;
+  background: transparent;
 }
 
 .device-screen--lock-ios .lock-ios-la--two-lines {
@@ -1434,11 +1435,46 @@ html.nav-menu-open .site-nav {
 
 .gallery-header {
   display: flex;
-  align-items: flex-end;
+  align-items: center;
   justify-content: space-between;
   gap: 16px;
   flex-wrap: wrap;
   margin-bottom: 24px;
+}
+
+@media (min-width: 901px) {
+  .gallery-header {
+    display: grid;
+    gap: 20px;
+    align-items: center;
+    grid-template-columns:
+      minmax(0, 1fr)
+      minmax(0, calc((100% - 40px) / 3))
+      minmax(0, calc((100% - 40px) / 3))
+      minmax(0, calc((100% - 40px) / 3));
+  }
+
+  .gallery-header-copy {
+    grid-column: 1;
+  }
+
+  .gallery-controls {
+    grid-column: 4;
+    justify-self: end;
+  }
+}
+
+@media (min-width: 901px) and (max-width: 1100px) {
+  .gallery-header {
+    grid-template-columns:
+      minmax(0, 1fr)
+      minmax(0, calc((100% - 20px) / 2))
+      minmax(0, calc((100% - 20px) / 2));
+  }
+
+  .gallery-controls {
+    grid-column: 3;
+  }
 }
 
 .gallery-controls {
@@ -1544,24 +1580,31 @@ html.nav-menu-open .site-nav {
 
 @media (min-width: 1024px) {
   .bento-grid {
-    grid-template-columns: 1fr 1fr;
-    align-items: stretch;
+    grid-template-columns: 3fr 2fr;
+    align-items: center;
   }
 
   .bento-lock {
     grid-column: 1;
     grid-row: 1;
+    align-self: stretch;
   }
 
   .bento-watch {
     grid-column: 2;
     grid-row: 1;
+    justify-content: center;
+    align-self: center;
   }
 
   .bento-island {
     grid-column: 1 / -1;
     grid-row: 2;
-    max-width: min(960px, 100%);
+    max-width: min(1040px, 100%);
+  }
+
+  .bento-lock .device--section {
+    --device-width: clamp(300px, 24vw, 348px);
   }
 }
 
@@ -1576,6 +1619,11 @@ html.nav-menu-open .site-nav {
   text-align: center;
   min-width: 0;
   max-width: 100%;
+}
+
+.bento-watch.bento-tile {
+  justify-content: center;
+  gap: 12px;
 }
 
 .bento-tile h3 {
@@ -1593,7 +1641,35 @@ html.nav-menu-open .site-nav {
 }
 
 .bento-lock .device--section {
-  --device-width: clamp(220px, 28vw, 280px);
+  --device-width: clamp(240px, 72vw, 320px);
+}
+
+.bento-lock-media {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+  width: 100%;
+}
+
+@media (min-width: 1024px) {
+  .bento-lock-media {
+    flex-direction: row;
+    flex-wrap: wrap;
+    justify-content: center;
+    align-items: flex-end;
+    gap: clamp(16px, 2.5vw, 28px);
+  }
+
+  .bento-lock-media > .device {
+    flex: 0 1 auto;
+  }
+
+  .bento-lock-media > .lock-card-closeup {
+    flex: 1 1 280px;
+    max-width: 398px;
+    margin: 0;
+  }
 }
 
 .bento-watch .device--section-watch {
@@ -1606,8 +1682,33 @@ html.nav-menu-open .site-nav {
   min-width: 0;
 }
 
-#island-widgets.bento-tile .tiles {
+#island-widgets.bento-tile .tiles,
+.bento-island .bento-tiles-wrap.tiles {
   width: 100%;
+  gap: clamp(20px, 3vw, 36px);
+  padding: clamp(20px, 2.5vw, 28px) clamp(16px, 2vw, 24px);
+}
+
+@media (min-width: 1024px) {
+  .bento-island .bento-tiles-wrap.tiles {
+    --widget-gap: 18px;
+    gap: clamp(24px, 2.5vw, 36px);
+  }
+
+  .bento-island .tile-row {
+    --widget-unit: min(200px, calc((100cqw - var(--widget-gap)) / 3));
+  }
+}
+
+@media (min-width: 1280px) {
+  .bento-island .tile-row {
+    --widget-unit: 170px;
+  }
+
+  .bento-island .tile-widget-medium {
+    width: 360px;
+    max-width: 100%;
+  }
 }
 
 @media (max-width: 420px) {

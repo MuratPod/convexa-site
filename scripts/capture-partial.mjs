@@ -19,15 +19,26 @@ async function widgetImgWidths(page) {
     return [...imgs].map((img) => ({
       cls: img.className.split(/\s+/).find((c) => c.startsWith('tile-widget')) || img.className,
       width: img.getBoundingClientRect().width,
+      bento: Boolean(img.closest('.bento-island')),
     }));
   });
 }
 
+function minForWidget(w, row) {
+  const isMedium = String(row.cls).includes('medium');
+  if (row.bento && w >= 1280) {
+    return isMedium ? 360 : 170;
+  }
+  if (row.bento && w >= 1024) {
+    return isMedium ? 340 : 160;
+  }
+  return minWidgetWidthForViewport(w);
+}
+
 function assertWidgetWidths(w, rows) {
-  const minW = minWidgetWidthForViewport(w);
-  const bad = rows.filter((r) => r.width + 0.5 < minW);
+  const bad = rows.filter((r) => r.width + 0.5 < minForWidget(w, r));
   if (bad.length) {
-    throw new Error(`widget width < ${minW}px at ${w}: ${JSON.stringify(bad)}`);
+    throw new Error(`widget width below floor at ${w}: ${JSON.stringify(bad)}`);
   }
 }
 
@@ -130,15 +141,15 @@ async function assertLockCloseups(page, vw) {
     if (row.w + 0.5 < minStripWidth) {
       throw new Error(`lock closeup narrow @ ${vw}: ${JSON.stringify(row)}`);
     }
-    const textPx = (row.w / row.natW) * 42;
-    const minText = vw <= 390 ? 13 : 14;
+    const textPx = (row.w / row.natW) * 44;
+    const minText = vw <= 390 ? 13 : 15;
     if (textPx + 0.5 < minText) {
       throw new Error(`lock closeup text scale < ${minText}px @ ${vw}: ${JSON.stringify({ ...row, textPx })}`);
     }
   }
   const phoneW = await page.evaluate(() => document.querySelector('#lock-screen .device--section')?.getBoundingClientRect().width ?? 0);
-  if (vw === 1440 && phoneW + 0.5 < 350) {
-    throw new Error(`§06 phone width ${phoneW} < 350 at 1440`);
+  if (vw === 1440 && phoneW + 0.5 < 300) {
+    throw new Error(`§06 phone width ${phoneW} < 300 at 1440`);
   }
 }
 
@@ -246,6 +257,11 @@ for (const w of widths) {
   await primeImages(page, null);
   await assertIphoneScreenShapes(page);
   await assertLockCloseups(page, w);
+  const lockIos = page.locator('.device-screen--lock-ios').first();
+  if (await lockIos.count()) {
+    await lockIos.scrollIntoViewIfNeeded();
+    await page.waitForTimeout(40);
+  }
   await assertLockLiveActivityStrip(page);
   await assertWatchTextFits(page);
   const issues = await layoutChecks(page, w);

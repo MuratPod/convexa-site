@@ -31,6 +31,42 @@ export async function assertLockLiveActivityStrip(page) {
       throw new Error(`lock LA too wide: ${data.widthRatio.toFixed(3)} of screen (index ${i})`);
     }
   }
+
+  const halo = await page.locator('.device-screen--lock-ios').first().evaluate((screen) => {
+    const la = screen.querySelector('.lock-ios-la');
+    if (!la) return { skip: true };
+    const lr = la.getBoundingClientRect();
+    const sr = screen.getBoundingClientRect();
+    const wallpaper = screen.querySelector('.lock-ios-wallpaper');
+    const sampleAt = (x, y) => {
+      const hits = document.elementsFromPoint(x, y);
+      if (!hits.length) return 'none';
+      if (hits.some((el) => el === la || la.contains(el))) return 'la';
+      if (wallpaper && hits.some((el) => el === wallpaper || wallpaper.contains(el))) return 'wallpaper';
+      return hits[0].className?.toString().slice(0, 40) || 'unknown';
+    };
+    const xL = Math.max(sr.left + 6, lr.left - Math.max(10, lr.width * 0.06));
+    const xR = Math.min(sr.right - 6, lr.right + Math.max(10, lr.width * 0.06));
+    const yMid = lr.top + lr.height * 0.55;
+    const yAbove = Math.max(sr.top + 8, lr.top - Math.max(8, lr.height * 0.15));
+    const leftMid = sampleAt(xL, yMid);
+    const rightMid = sampleAt(xR, yMid);
+    const aboveMid = sampleAt(lr.left + lr.width * 0.5, yAbove);
+    if ([leftMid, rightMid, aboveMid].every((k) => k === 'none')) {
+      return { skip: true, reason: 'no hits' };
+    }
+    const badLa = [leftMid, rightMid, aboveMid].includes('la');
+    const allWall = [leftMid, rightMid, aboveMid].every((k) => k === 'wallpaper');
+    return {
+      leftMid,
+      rightMid,
+      aboveMid,
+      ok: !badLa && allWall,
+    };
+  });
+  if (!halo?.skip && halo && !halo.ok) {
+    throw new Error(`lock LA halo / backdrop outside card: ${JSON.stringify(halo)}`);
+  }
 }
 
 /** @param {import('playwright').Page} page */

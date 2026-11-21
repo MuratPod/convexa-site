@@ -8,14 +8,7 @@
   padding-top: 0;
 }
 
-.gallery-header {
-  display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: 16px;
-  flex-wrap: wrap;
-  margin-bottom: 24px;
-}
+/* gallery-header grid lives in styles.css */
 
 .gallery-controls {
   display: flex;
@@ -185,26 +178,7 @@
   gap: clamp(16px, 2.5vw, 28px);
 }
 
-@media (min-width: 1024px) {
-  .bento-grid {
-    grid-template-columns: 1fr 1fr;
-  }
-
-  .bento-lock {
-    grid-column: 1;
-    grid-row: 1;
-  }
-
-  .bento-watch {
-    grid-column: 2;
-    grid-row: 1;
-  }
-
-  .bento-island {
-    grid-column: 1 / -1;
-    grid-row: 2;
-  }
-}
+/* bento grid: styles.css */
 
 .bento-tile {
   border: 1px solid var(--line);
@@ -231,13 +205,7 @@
   max-width: 24em;
 }
 
-.bento-lock .device--section {
-  --device-width: 240px;
-}
-
-.bento-watch .device--section-watch {
-  --device-width: clamp(230px, 16vw, 272px);
-}
+/* lock/watch sizes: styles.css */
 
 .bento-tiles-wrap {
   width: 100%;
