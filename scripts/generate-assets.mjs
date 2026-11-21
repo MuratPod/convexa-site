@@ -14,41 +14,98 @@ const twoLinesCardCrop = {
   height: 225,
 };
 
-/** Trim near-black / transparent margins; keep 1px pad so anti-aliased UI isn’t clipped. */
-async function trimEmptyMargins(inputPath, { bgLum = 18, pad = 1 } = {}) {
-  const img = sharp(inputPath).ensureAlpha();
-  const { data, info } = await img.raw().toBuffer({ resolveWithObject: true });
+function getPx(data, w, ch, x, y) {
+  const i = (y * w + x) * ch;
+  return { r: data[i], g: data[i + 1], b: data[i + 2], a: data[i + 3] };
+}
+
+function isBg(px, bg, tol, transparentBg) {
+  if (transparentBg) return px.a < 8;
+  return (
+    Math.abs(px.r - bg.r) <= tol
+    && Math.abs(px.g - bg.g) <= tol
+    && Math.abs(px.b - bg.b) <= tol
+    && Math.abs(px.a - bg.a) <= tol
+  );
+}
+
+function rowAllBg(data, w, h, ch, y, x0, x1, bg, tol, transparentBg) {
+  for (let x = x0; x <= x1; x += 1) {
+    if (!isBg(getPx(data, w, ch, x, y), bg, tol, transparentBg)) return false;
+  }
+  return true;
+}
+
+function colAllBg(data, w, h, ch, x, y0, y1, bg, tol, transparentBg) {
+  for (let y = y0; y <= y1; y += 1) {
+    if (!isBg(getPx(data, w, ch, x, y), bg, tol, transparentBg)) return false;
+  }
+  return true;
+}
+
+/** Trim only uniform outer margins matching source corner colour (±3) or transparent. */
+async function trimOuterMarginByCorners(inputPath, { tol = 3, minPad = 6 } = {}) {
+  const { data, info } = await sharp(inputPath).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
   const w = info.width;
   const h = info.height;
-  const lum = (r, g, b) => 0.299 * r + 0.587 * g + 0.114 * b;
-  let minX = w;
-  let minY = h;
-  let maxX = 0;
-  let maxY = 0;
-  let n = 0;
-  for (let y = 0; y < h; y += 1) {
-    for (let x = 0; x < w; x += 1) {
-      const i = (y * w + x) * 4;
-      const a = data[i + 3];
-      const l = lum(data[i], data[i + 1], data[i + 2]);
-      if (a < 8 || l <= bgLum) continue;
-      n += 1;
-      minX = Math.min(minX, x);
-      minY = Math.min(minY, y);
-      maxX = Math.max(maxX, x);
-      maxY = Math.max(maxY, y);
-    }
+  const ch = info.channels;
+  const cornerPts = [
+    [0, 0],
+    [w - 1, 0],
+    [0, h - 1],
+    [w - 1, h - 1],
+  ];
+  const corners = cornerPts.map(([x, y]) => getPx(data, w, ch, x, y));
+  const bg = {
+    r: Math.round(corners.reduce((s, c) => s + c.r, 0) / corners.length),
+    g: Math.round(corners.reduce((s, c) => s + c.g, 0) / corners.length),
+    b: Math.round(corners.reduce((s, c) => s + c.b, 0) / corners.length),
+    a: Math.round(corners.reduce((s, c) => s + c.a, 0) / corners.length),
+  };
+  const maxDev = Math.max(
+    ...corners.map((c) => Math.max(
+      Math.abs(c.r - bg.r),
+      Math.abs(c.g - bg.g),
+      Math.abs(c.b - bg.b),
+      Math.abs(c.a - bg.a),
+    )),
+  );
+  if (maxDev > tol) {
+    return { skip: true, reason: 'corner-mismatch', maxDev, bg };
   }
-  if (!n) return null;
-  const left = Math.max(0, minX - pad);
-  const top = Math.max(0, minY - pad);
-  const right = Math.min(w - 1, maxX + pad);
-  const bottom = Math.min(h - 1, maxY + pad);
+  const transparentBg = bg.a < 8 || corners.every((c) => c.a < 8);
+
+  let top = 0;
+  let bottom = h - 1;
+  let left = 0;
+  let right = w - 1;
+  while (top <= bottom && rowAllBg(data, w, h, ch, top, 0, w - 1, bg, tol, transparentBg)) top += 1;
+  while (bottom >= top && rowAllBg(data, w, h, ch, bottom, 0, w - 1, bg, tol, transparentBg)) bottom -= 1;
+  while (left <= right && colAllBg(data, w, h, ch, left, top, bottom, bg, tol, transparentBg)) left += 1;
+  while (right >= left && colAllBg(data, w, h, ch, right, top, bottom, bg, tol, transparentBg)) right -= 1;
+
+  if (left >= right || top >= bottom) {
+    return { skip: true, reason: 'no-margin', bg };
+  }
+
+  const padL = Math.max(0, left - minPad);
+  const padT = Math.max(0, top - minPad);
+  const padR = Math.min(w - 1, right + minPad);
+  const padB = Math.min(h - 1, bottom + minPad);
+
+  const cropW = padR - padL + 1;
+  const cropH = padB - padT + 1;
+  if (cropW >= w - 2 && cropH >= h - 2) {
+    return { skip: true, reason: 'insufficient-trim', bg };
+  }
+
   return {
-    left,
-    top,
-    width: right - left + 1,
-    height: bottom - top + 1,
+    left: padL,
+    top: padT,
+    width: cropW,
+    height: cropH,
+    bg,
+    transparentBg,
   };
 }
 
@@ -83,14 +140,16 @@ for (const [src, dest] of map) {
   const output = join(outDir, dest);
   let pipeline = sharp(input);
   if (trimDests.has(dest)) {
-    const crop = await trimEmptyMargins(input);
-    if (crop) {
+    const crop = await trimOuterMarginByCorners(input);
+    if (crop && !crop.skip) {
       pipeline = sharp(input).extract(crop);
       console.log(`${dest} crop ${crop.width}x${crop.height} @ ${crop.left},${crop.top}`);
+    } else if (crop?.skip) {
+      console.log(`${dest} skip trim: ${crop.reason}`);
     }
   }
-  const meta = await pipeline.metadata();
   await pipeline.webp({ quality }).toFile(output);
+  const meta = await sharp(output).metadata();
   console.log(`${dest} ${meta.width}x${meta.height}`);
 }
 

@@ -1089,7 +1089,6 @@ html.nav-menu-open .site-nav {
 .tiles > img.tile-island-compact,
 .tiles > img.tile-island-expanded {
   display: block;
-  border-radius: 0;
   width: auto;
   max-width: 100%;
   height: auto;
@@ -1106,7 +1105,6 @@ html.nav-menu-open .site-nav {
   height: var(--widget-unit);
   flex: 0 0 auto;
   object-fit: contain;
-  border-radius: 32px;
 }
 
 .tile-widget-medium {
@@ -1114,7 +1112,6 @@ html.nav-menu-open .site-nav {
   height: var(--widget-unit);
   flex: 0 0 auto;
   object-fit: contain;
-  border-radius: 32px;
 }
 
 /* ——— How / Privacy ——— */

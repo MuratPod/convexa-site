@@ -5,6 +5,7 @@ import {
   assertGalleryHeader,
   assertBentoRowHeights,
   assertBentoIslandVisualGaps,
+  assertTileAssetCornerBackgrounds,
   assertHeroShowcaseAlignment,
 } from './capture-assertions.mjs';
 
@@ -54,6 +55,7 @@ for (const path of paths) {
       if (w >= 1024) {
         await page.locator('#island-widgets, .bento-island').first().scrollIntoViewIfNeeded();
         await page.waitForTimeout(40);
+        await assertTileAssetCornerBackgrounds(page);
         await assertBentoIslandVisualGaps(page, w);
       }
       await assertHeroShowcaseAlignment(page, w);

@@ -162,6 +162,53 @@ export async function assertHeroShowcaseAlignment(page, vw) {
 }
 
 /** @param {import('playwright').Page} page */
+export async function assertTileAssetCornerBackgrounds(page) {
+  const issues = await page.evaluate(() => {
+    const imgs = [...document.querySelectorAll('#island-widgets .tiles img, .bento-island .tiles img')];
+    const out = [];
+    const tol = 3;
+    for (const img of imgs) {
+      const w = img.naturalWidth;
+      const h = img.naturalHeight;
+      if (!w || !h || !img.complete) continue;
+      const c = document.createElement('canvas');
+      c.width = w;
+      c.height = h;
+      const ctx = c.getContext('2d');
+      if (!ctx) continue;
+      ctx.drawImage(img, 0, 0);
+      const { data } = ctx.getImageData(0, 0, w, h);
+      const px = (x, y) => ({
+        r: data[(y * w + x) * 4],
+        g: data[(y * w + x) * 4 + 1],
+        b: data[(y * w + x) * 4 + 2],
+        a: data[(y * w + x) * 4 + 3],
+      });
+      const corners = [px(0, 0), px(w - 1, 0), px(0, h - 1), px(w - 1, h - 1)];
+      const ref = corners[0];
+      const transparentBg = ref.a < 8;
+      for (let i = 0; i < corners.length; i += 1) {
+        const p = corners[i];
+        if (transparentBg) {
+          if (p.a >= 8) out.push({ src: img.getAttribute('src'), corner: i, kind: 'corner-not-transparent', p });
+        } else if (
+          Math.abs(p.r - ref.r) > tol
+          || Math.abs(p.g - ref.g) > tol
+          || Math.abs(p.b - ref.b) > tol
+          || Math.abs(p.a - ref.a) > tol
+        ) {
+          out.push({ src: img.getAttribute('src'), corner: i, kind: 'corner-mismatch', ref, p });
+        }
+      }
+    }
+    return out;
+  });
+  if (issues.length) {
+    throw new Error(`tile asset corner background: ${JSON.stringify(issues)}`);
+  }
+}
+
+/** @param {import('playwright').Page} page */
 export async function assertBentoIslandVisualGaps(page, vw) {
   if (vw < 1024) return;
   const result = await page.evaluate(async () => {
@@ -179,29 +226,46 @@ export async function assertBentoIslandVisualGaps(page, vw) {
       if (!ctx) return null;
       ctx.drawImage(img, 0, 0);
       const { data } = ctx.getImageData(0, 0, w, h);
-      let minX = w;
-      let minY = h;
-      let maxX = 0;
-      let maxY = 0;
-      const bg = 22;
-      for (let y = 0; y < h; y += 1) {
-        for (let x = 0; x < w; x += 1) {
-          const i = (y * w + x) * 4;
-          const l = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
-          if (data[i + 3] < 8 || l <= bg) continue;
-          minX = Math.min(minX, x);
-          minY = Math.min(minY, y);
-          maxX = Math.max(maxX, x);
-          maxY = Math.max(maxY, y);
-        }
-      }
-      if (maxX < minX) return null;
+      const px = (x, y) => ({
+        r: data[(y * w + x) * 4],
+        g: data[(y * w + x) * 4 + 1],
+        b: data[(y * w + x) * 4 + 2],
+        a: data[(y * w + x) * 4 + 3],
+      });
+      const tol = 3;
+      const ref = px(0, 0);
+      const transparentBg = ref.a < 8;
+      const isBg = (p) => (
+        transparentBg
+          ? p.a < 8
+          : Math.abs(p.r - ref.r) <= tol
+            && Math.abs(p.g - ref.g) <= tol
+            && Math.abs(p.b - ref.b) <= tol
+            && Math.abs(p.a - ref.a) <= tol
+      );
+      const rowBg = (y) => {
+        for (let x = 0; x < w; x += 1) if (!isBg(px(x, y))) return false;
+        return true;
+      };
+      const colBg = (x, y0, y1) => {
+        for (let y = y0; y <= y1; y += 1) if (!isBg(px(x, y))) return false;
+        return true;
+      };
+      let top = 0;
+      let bottom = h - 1;
+      let left = 0;
+      let right = w - 1;
+      while (top <= bottom && rowBg(top)) top += 1;
+      while (bottom >= top && rowBg(bottom)) bottom -= 1;
+      while (left <= right && colBg(left, top, bottom)) left += 1;
+      while (right >= left && colBg(right, top, bottom)) right -= 1;
+      if (left > right || top > bottom) return null;
       const r = img.getBoundingClientRect();
       const sx = r.width / w;
       const sy = r.height / h;
       return {
-        top: r.top + minY * sy,
-        bottom: r.top + (maxY + 1) * sy,
+        top: r.top + top * sy,
+        bottom: r.top + (bottom + 1) * sy,
       };
     }
 

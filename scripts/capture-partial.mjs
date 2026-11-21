@@ -7,6 +7,7 @@ import {
   assertGalleryHeader,
   assertBentoRowHeights,
   assertBentoIslandVisualGaps,
+  assertTileAssetCornerBackgrounds,
   assertHeroShowcaseAlignment,
 } from './capture-assertions.mjs';
 
@@ -278,6 +279,7 @@ for (const w of widths) {
     await assertBentoRowHeights(page, w);
     await page.locator('#island-widgets').scrollIntoViewIfNeeded();
     await page.waitForTimeout(40);
+    await assertTileAssetCornerBackgrounds(page);
     await assertBentoIslandVisualGaps(page, w);
   }
   if ([360, 390, 768, 900, 901, 1024, 1280, 1366, 1440].includes(w)) {
