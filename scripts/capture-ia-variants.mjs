@@ -6,6 +6,7 @@ import {
   assertBentoRowHeights,
   assertBentoIslandVisualGaps,
   assertTileAssetCornerBackgrounds,
+  assertLockCloseupInTile,
   assertHeroShowcaseAlignment,
 } from './capture-assertions.mjs';
 
@@ -50,6 +51,11 @@ for (const path of paths) {
     await assertLockLiveActivityStrip(page);
     await assertWatchTextFits(page);
     if (path === '/' || path === '/b/') {
+      if ([360, 390, 768, 1024, 1440].includes(w)) {
+        await page.locator('#lock-screen').scrollIntoViewIfNeeded();
+        await page.waitForTimeout(40);
+        await assertLockCloseupInTile(page, w);
+      }
       await assertGalleryHeader(page, w);
       await assertBentoRowHeights(page, w);
       if (w >= 1024) {

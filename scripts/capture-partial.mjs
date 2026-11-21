@@ -8,6 +8,7 @@ import {
   assertBentoRowHeights,
   assertBentoIslandVisualGaps,
   assertTileAssetCornerBackgrounds,
+  assertLockCloseupInTile,
   assertHeroShowcaseAlignment,
 } from './capture-assertions.mjs';
 
@@ -265,6 +266,11 @@ for (const w of widths) {
   await primeImages(page, null);
   await assertIphoneScreenShapes(page);
   await assertLockCloseups(page, w);
+  if ([360, 390, 768, 1024, 1440].includes(w)) {
+    await page.locator('#lock-screen').scrollIntoViewIfNeeded();
+    await page.waitForTimeout(40);
+    await assertLockCloseupInTile(page, w);
+  }
   const lockIos = page.locator('.device-screen--lock-ios').first();
   if (await lockIos.count()) {
     await lockIos.scrollIntoViewIfNeeded();

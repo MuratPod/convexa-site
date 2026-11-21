@@ -307,6 +307,37 @@ export async function assertBentoIslandVisualGaps(page, vw) {
 }
 
 /** @param {import('playwright').Page} page */
+export async function assertLockCloseupInTile(page, vw) {
+  const widths = [360, 390, 768, 1024, 1440];
+  if (!widths.includes(vw)) return;
+  const bad = await page.evaluate(() => {
+    const tile = document.querySelector('#lock-screen.bento-tile, .bento-lock.bento-tile');
+    const closeup = tile?.querySelector('.lock-card-closeup');
+    if (!tile || !closeup) return null;
+    const padL = Number.parseFloat(getComputedStyle(tile).paddingLeft) || 0;
+    const padR = Number.parseFloat(getComputedStyle(tile).paddingRight) || 0;
+    const tr = tile.getBoundingClientRect();
+    const contentLeft = tr.left + padL;
+    const contentRight = tr.right - padR;
+    const cr = closeup.getBoundingClientRect();
+    const issues = [];
+    if (cr.left < contentLeft - 1.5) {
+      issues.push({ side: 'left', inset: cr.left - contentLeft });
+    }
+    if (cr.right > contentRight + 1.5) {
+      issues.push({ side: 'right', inset: cr.right - contentRight });
+    }
+    if (padL < 15.5) issues.push({ side: 'padding', msg: `padL ${padL}` });
+    return issues.length
+      ? { contentLeft, contentRight, closeup: { l: cr.left, r: cr.right }, padL, padR, issues }
+      : null;
+  });
+  if (bad) {
+    throw new Error(`lock closeup outside tile content box @ ${vw}: ${JSON.stringify(bad)}`);
+  }
+}
+
+/** @param {import('playwright').Page} page */
 export async function assertBentoRowHeights(page, vw) {
   if (vw < 1024) return;
   const diff = await page.evaluate(() => {

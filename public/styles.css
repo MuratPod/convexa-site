@@ -621,10 +621,11 @@ html.nav-menu-open .site-nav {
 
 /* Live Activity strip close-ups (1194px @3x → 398 pt wide), no bezel */
 .lock-card-closeup {
-  margin: 0;
+  margin-inline: auto;
   display: block;
-  width: min(398px, calc(100vw - 16px));
-  max-width: 398px;
+  width: 100%;
+  max-width: min(398px, 100%);
+  box-sizing: border-box;
   line-height: 0;
   background: #0a0b0e;
   border: 1px solid #181a21;
@@ -636,7 +637,7 @@ html.nav-menu-open .site-nav {
   display: block;
   width: 100%;
   height: auto;
-  max-width: 398px;
+  max-width: 100%;
   margin: 0;
   border-radius: 0;
   background: #000;
@@ -1707,6 +1708,14 @@ html.nav-menu-open .site-nav {
   align-items: center;
   gap: 20px;
   width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+.bento-lock-media > .lock-card-closeup {
+  width: 100%;
+  max-width: min(398px, 100%);
+  align-self: center;
 }
 
 @media (min-width: 1024px) {
