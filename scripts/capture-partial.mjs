@@ -12,7 +12,7 @@ import {
 const BASE = process.env.BASE_URL || 'http://127.0.0.1:8787';
 const OUT = '/opt/cursor/artifacts';
 mkdirSync(OUT, { recursive: true });
-const widths = [1440, 1366, 1280, 1152, 1024, 900, 768, 390, 360];
+const widths = [1440, 1366, 1280, 1152, 1024, 901, 900, 768, 390, 360];
 const MARGIN = 8;
 
 function minWidgetWidthForViewport(w) {
@@ -276,7 +276,7 @@ for (const w of widths) {
   if (w >= 1024) {
     await assertBentoRowHeights(page, w);
   }
-  if ([1024, 1280, 1366, 1440].includes(w)) {
+  if ([360, 390, 768, 900, 901, 1024, 1280, 1366, 1440].includes(w)) {
     await assertHeroShowcaseAlignment(page, w);
   }
   const issues = await layoutChecks(page, w);

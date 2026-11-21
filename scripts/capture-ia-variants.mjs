@@ -9,7 +9,7 @@ import {
 
 const BASE = process.env.BASE_URL || 'http://127.0.0.1:8787';
 const paths = ['/', '/a/', '/b/', '/c/'];
-const widths = [390, 768, 1024, 1280, 1440];
+const widths = [360, 390, 768, 900, 901, 1024, 1280, 1440];
 
 const browser = await chromium.launch();
 const report = {};

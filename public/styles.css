@@ -1453,13 +1453,48 @@ html.nav-menu-open .site-nav {
 
   .hero--showcase .device--hero-home,
   .hero--variant-b .device--hero-home {
-    --device-width: clamp(280px, 22vw, 340px);
+    --device-width: clamp(300px, 24vw, 340px);
   }
 
   .hero--showcase .chips,
   .hero--variant-b .chips {
     justify-content: flex-start;
     flex-wrap: wrap;
+  }
+}
+
+@media (max-width: 900px) {
+  .hero--showcase .hero-grid,
+  .hero--variant-b .hero-grid {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 100%;
+  }
+
+  .hero--showcase .hero-stage,
+  .hero--variant-b .hero-stage {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 100%;
+    max-width: 100%;
+    margin-inline: auto;
+  }
+
+  .hero--showcase .device-col,
+  .hero--variant-b .device-col {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin-inline: auto;
+    width: 100%;
+    max-width: min(336px, calc(100vw - 32px));
+  }
+
+  .hero--showcase .device--hero-home,
+  .hero--variant-b .device--hero-home {
+    margin-inline: auto;
   }
 }
 
@@ -1710,7 +1745,7 @@ html.nav-menu-open .site-nav {
 #island-widgets.bento-tile .tiles,
 .bento-island .bento-tiles-wrap.tiles {
   width: 100%;
-  gap: 28px;
+  gap: 32px;
   padding: 20px clamp(16px, 2vw, 22px) 22px;
 }
 
@@ -1731,15 +1766,18 @@ html.nav-menu-open .site-nav {
 }
 
 @media (min-width: 1280px) {
+  #island-widgets.bento-tile .tiles,
   .bento-island .bento-tiles-wrap.tiles {
     gap: 36px;
     --widget-gap: 20px;
   }
 
+  #island-widgets.bento-tile .tile-row,
   .bento-island .tile-row {
     --widget-unit: 200px;
   }
 
+  #island-widgets.bento-tile .tile-widget-medium,
   .bento-island .tile-widget-medium {
     width: 420px;
     max-width: 100%;
