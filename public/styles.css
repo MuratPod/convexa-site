@@ -1621,21 +1621,174 @@ html.nav-menu-open .site-nav {
   }
 }
 
+.carousel-dots {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 16px;
+  padding-bottom: 4px;
+}
+
+.carousel-dot {
+  width: 10px;
+  height: 10px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: var(--line);
+  cursor: pointer;
+  transition: background 0.15s ease, transform 0.15s ease;
+}
+
+.carousel-dot.is-active,
+.carousel-dot[aria-selected='true'] {
+  background: var(--blue);
+  transform: scale(1.15);
+}
+
+.carousel-dot:hover,
+.carousel-dot:focus-visible {
+  background: var(--blue);
+  outline: 2px solid var(--blue);
+  outline-offset: 3px;
+}
+
 .bento-section {
   border-top: 1px solid #15161c;
   background: rgba(22, 23, 29, 0.35);
   overflow-x: clip;
 }
 
-.bento-grid {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: clamp(16px, 2.5vw, 28px);
+.bento-header {
+  margin-bottom: 24px;
+}
+
+.bento-desktop-only {
+  display: none;
+}
+
+.bento-track {
+  display: flex;
+  gap: 16px;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  scroll-behavior: smooth;
+  -webkit-overflow-scrolling: touch;
+  padding-bottom: 8px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--line) transparent;
+  max-width: 100%;
+  align-items: stretch;
+}
+
+.bento-track-wrap {
+  position: relative;
+  margin-inline: calc(-1 * clamp(16px, 5vw, 40px));
+  padding-inline: clamp(16px, 5vw, 40px);
+  overflow-x: clip;
+}
+
+.bento-carousel-slide {
+  flex: 0 0 min(320px, 86vw);
+  scroll-snap-align: start;
+  min-width: 0;
+  max-height: none;
+  align-self: flex-start;
+}
+
+@media (max-width: 1023px) {
+  .bento-track {
+    scroll-padding-inline: clamp(16px, 5vw, 40px);
+  }
+
+  .bento-carousel-slide {
+    flex: 0 0 min(330px, 88vw);
+  }
+
+  .bento-tile h3 {
+    margin-top: 14px;
+    font-size: 22px;
+    font-weight: 800;
+    color: var(--tx);
+  }
+
+  .bento-tile p {
+    font-size: 17px;
+    font-weight: 500;
+    color: var(--tx);
+    line-height: 1.45;
+  }
+
+  .bento-lock .device--section {
+    --device-width: min(228px, 56vw);
+  }
+
+  .bento-lock-media {
+    gap: 12px;
+  }
+
+  .bento-watch .device--section-watch {
+    --device-width: min(200px, 50vw);
+  }
+
+  .bento-slide-island .bento-tiles-wrap--island-only,
+  .bento-slide-widgets .bento-tiles-wrap--widgets-only {
+    max-width: 100%;
+  }
+
+  .bento-slide-widgets .tile-row {
+    justify-content: center;
+    --widget-unit: min(148px, 38vw);
+  }
+
+  .bento-watch-disclaimer {
+    font-weight: 600;
+    color: var(--tx);
+    max-width: 20em;
+  }
+}
+
+.concept-badge {
+  display: inline-block;
+  margin-bottom: 4px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--gold);
+  color: var(--gold);
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.bento-watch-disclaimer {
+  font-weight: 600;
+  color: var(--tx);
+  max-width: 22em;
 }
 
 @media (min-width: 1024px) {
-  .bento-grid {
+  .bento-controls,
+  .bento-dots {
+    display: none;
+  }
+
+  .bento-carousel-slide.bento-slide-island,
+  .bento-carousel-slide.bento-slide-widgets {
+    display: none;
+  }
+
+  .bento-desktop-only {
+    display: flex;
+  }
+
+  .bento-track {
+    display: grid;
     grid-template-columns: 3fr 2fr;
+    gap: clamp(16px, 2.5vw, 28px);
+    overflow: visible;
+    padding-bottom: 0;
     align-items: stretch;
   }
 
@@ -1655,10 +1808,12 @@ html.nav-menu-open .site-nav {
     --device-width: clamp(268px, 18vw, 280px);
   }
 
-  .bento-island {
+  .bento-island-widgets-cluster.bento-desktop-only {
     grid-column: 1 / -1;
     grid-row: 2;
     max-width: min(1040px, 100%);
+    width: 100%;
+    justify-self: center;
   }
 
   .bento-lock .device--section {
@@ -1682,6 +1837,14 @@ html.nav-menu-open .site-nav {
 .bento-watch.bento-tile {
   justify-content: center;
   gap: 12px;
+}
+
+.bento-tiles-wrap--island-only {
+  gap: 20px;
+}
+
+.bento-tiles-wrap--widgets-only .tile-row {
+  justify-content: center;
 }
 
 .bento-tile h3 {

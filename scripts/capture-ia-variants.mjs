@@ -7,6 +7,7 @@ import {
   assertBentoIslandVisualGaps,
   assertTileAssetCornerBackgrounds,
   assertLockCloseupInTile,
+  assertBentoMobileCarousel,
   assertHeroShowcaseAlignment,
 } from './capture-assertions.mjs';
 
@@ -57,9 +58,14 @@ for (const path of paths) {
         await assertLockCloseupInTile(page, w);
       }
       await assertGalleryHeader(page, w);
-      await assertBentoRowHeights(page, w);
+      if ([360, 390, 768].includes(w)) {
+        await page.locator('#bento-track').scrollIntoViewIfNeeded();
+        await page.waitForTimeout(60);
+        await assertBentoMobileCarousel(page, w);
+      }
       if (w >= 1024) {
-        await page.locator('#island-widgets, .bento-island').first().scrollIntoViewIfNeeded();
+        await assertBentoRowHeights(page, w);
+        await page.locator('#island-widgets').scrollIntoViewIfNeeded();
         await page.waitForTimeout(40);
         await assertTileAssetCornerBackgrounds(page);
         await assertBentoIslandVisualGaps(page, w);

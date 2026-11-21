@@ -338,6 +338,44 @@ export async function assertLockCloseupInTile(page, vw) {
 }
 
 /** @param {import('playwright').Page} page */
+export async function assertBentoMobileCarousel(page, vw) {
+  const narrow = [360, 390, 768];
+  if (!narrow.includes(vw)) return;
+  const bad = await page.evaluate(() => {
+    const track = document.getElementById('bento-track');
+    if (!track) return { err: 'no bento-track' };
+    const slides = [...track.querySelectorAll('.bento-carousel-slide')].filter(
+      (el) => getComputedStyle(el).display !== 'none',
+    );
+    if (slides.length < 4) return { err: 'expected 4 carousel slides', n: slides.length };
+    const tops = slides.map((s) => s.getBoundingClientRect().top);
+    const minT = Math.min(...tops);
+    const maxT = Math.max(...tops);
+    const doc = document.documentElement;
+    const pageOverflow = doc.scrollWidth - doc.clientWidth;
+    const trackRect = track.getBoundingClientRect();
+    const trackScrollable = track.scrollWidth > track.clientWidth + 4;
+    return {
+      topSpread: maxT - minT,
+      pageOverflow,
+      trackScrollable,
+      trackClientW: track.clientWidth,
+      trackScrollW: track.scrollWidth,
+    };
+  });
+  if (bad.err) throw new Error(`bento carousel @ ${vw}: ${bad.err}`);
+  if (bad.topSpread > 2) {
+    throw new Error(`bento slide tops misaligned by ${bad.topSpread.toFixed(2)}px @ ${vw}`);
+  }
+  if (bad.pageOverflow > 2) {
+    throw new Error(`page horizontal overflow ${bad.pageOverflow}px @ ${vw}`);
+  }
+  if (!bad.trackScrollable) {
+    throw new Error(`bento track not horizontally scrollable @ ${vw}`);
+  }
+}
+
+/** @param {import('playwright').Page} page */
 export async function assertBentoRowHeights(page, vw) {
   if (vw < 1024) return;
   const diff = await page.evaluate(() => {

@@ -24,7 +24,7 @@
   <link rel="icon" href="assets/favicon.png" type="image/png" sizes="64x64">
   <link rel="icon" href="assets/favicon-32.png" type="image/png" sizes="32x32">
   <link rel="apple-touch-icon" href="assets/favicon.png">
-  <link rel="stylesheet" href="styles.css?v=20261124a">
+  <link rel="stylesheet" href="styles.css?v=20261124b">
 </head>
 <body>
   <header class="site-nav">
@@ -61,7 +61,7 @@
         <div class="hero-copy">
           <span class="eyebrow">For iPhone · QQQ options</span>
           <h1>Your whole options book.<br><em>One curve.</em><br>Every move.</h1>
-          <p class="lead">Convexa reads your Interactive Brokers book and shows what a ±1%, ±3%, or ±5% QQQ move does to your money — on Home, the Lock Screen, and your wrist.</p>
+          <p class="lead">Convexa reads your Interactive Brokers book and shows what a ±1%, ±3%, or ±5% QQQ move does to your money — in the app, on the Lock Screen, in the Dynamic Island, and on Home Screen widgets.</p>
           <div class="chips">
             <span class="chip">NLV <strong>$64,624.16</strong></span>
             <span class="chip">Day <span class="up">+$2,671.95</span></span>
@@ -110,7 +110,7 @@
             <article class="gallery-slide">
               <figure class="device device--iphone-16-pro-max device--section">
                 <div class="device-screen">
-                  <img src="assets/01-home.webp" width="1320" height="2868" loading="lazy" alt="Home screen with demo NLV and QQQ smile chart.">
+                  <img src="assets/01-home.webp" width="1320" height="2868" loading="eager" fetchpriority="high" decoding="async" alt="Home screen with demo NLV and QQQ smile chart.">
                 </div>
                 <picture>
                   <source type="image/webp" srcset="assets/bezels/iphone-16-pro-max-natural.webp">
@@ -122,7 +122,7 @@
             <article class="gallery-slide">
               <figure class="device device--iphone-16-pro-max device--section">
                 <div class="device-screen">
-                  <img src="assets/02-now.webp" width="1320" height="2868" loading="lazy" alt="Analysis Now horizon on the demo book.">
+                  <img src="assets/02-now.webp" width="1320" height="2868" loading="eager" fetchpriority="high" decoding="async" alt="Analysis Now horizon on the demo book.">
                 </div>
                 <picture>
                   <source type="image/webp" srcset="assets/bezels/iphone-16-pro-max-natural.webp">
@@ -134,7 +134,7 @@
             <article class="gallery-slide">
               <figure class="device device--iphone-16-pro-max device--section">
                 <div class="device-screen">
-                  <img src="assets/05-legs.webp" width="1320" height="2868" loading="lazy" alt="Positions grouped by expiry on the demo book.">
+                  <img src="assets/05-legs.webp" width="1320" height="2868" loading="eager" decoding="async" alt="Positions grouped by expiry on the demo book.">
                 </div>
                 <picture>
                   <source type="image/webp" srcset="assets/bezels/iphone-16-pro-max-natural.webp">
@@ -146,7 +146,7 @@
             <article class="gallery-slide">
               <figure class="device device--iphone-16-pro-max device--section">
                 <div class="device-screen">
-                  <img src="assets/04-virtual-leg.webp" width="1320" height="2868" loading="lazy" alt="Virtual leg calculation-only card.">
+                  <img src="assets/04-virtual-leg.webp" width="1320" height="2868" loading="eager" decoding="async" alt="Virtual leg calculation-only card.">
                 </div>
                 <picture>
                   <source type="image/webp" srcset="assets/bezels/iphone-16-pro-max-natural.webp">
@@ -158,7 +158,7 @@
             <article class="gallery-slide">
               <figure class="device device--iphone-16-pro-max device--section">
                 <div class="device-screen">
-                  <img src="assets/06-vol.webp" width="1320" height="2868" loading="lazy" alt="Vol tab with IV by expiry.">
+                  <img src="assets/06-vol.webp" width="1320" height="2868" loading="eager" decoding="async" alt="Vol tab with IV by expiry.">
                 </div>
                 <picture>
                   <source type="image/webp" srcset="assets/bezels/iphone-16-pro-max-natural.webp">
@@ -170,7 +170,7 @@
             <article class="gallery-slide">
               <figure class="device device--iphone-16-pro-max device--section">
                 <div class="device-screen">
-                  <img src="assets/07-settings.webp" width="1320" height="2868" loading="lazy" alt="Live Activity settings on the demo book.">
+                  <img src="assets/07-settings.webp" width="1320" height="2868" loading="eager" decoding="async" alt="Live Activity settings on the demo book.">
                 </div>
                 <picture>
                   <source type="image/webp" srcset="assets/bezels/iphone-16-pro-max-natural.webp">
@@ -180,18 +180,32 @@
               <p class="device-cap">Settings</p>
             </article>
           </div>
+          <div class="carousel-dots gallery-dots" id="gallery-dots" role="tablist" aria-label="Screen slides"></div>
         </div>
       </div>
     </section>
 
     <section class="section bento-section" aria-labelledby="h-bento">
       <div class="wrap">
-        <div class="section-head">
-          <div class="sec-num">Beyond the app</div>
-          <h2 id="h-bento">Lock Screen, Island, and Watch</h2>
+        <div class="bento-header gallery-header">
+          <div class="gallery-header-copy">
+            <div class="sec-num">Beyond the app</div>
+            <div class="gallery-title-row bento-title-row">
+              <h2 id="h-bento">Lock Screen, Island, and Watch</h2>
+              <div class="gallery-controls bento-controls">
+                <button type="button" class="gallery-btn" id="bento-prev" aria-label="Previous feature">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg>
+                </button>
+                <button type="button" class="gallery-btn" id="bento-next" aria-label="Next feature">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
-        <div class="bento-grid">
-          <article class="bento-tile bento-lock" id="lock-screen">
+        <div class="bento-track-wrap gallery-track-wrap">
+          <div class="bento-track" id="bento-track" tabindex="0" role="region" aria-label="Lock Screen, Island, widgets, and Watch design concept">
+          <article class="bento-tile bento-lock bento-carousel-slide" id="lock-screen" aria-label="Lock Screen">
             <div class="bento-lock-media">
               <figure class="device device--iphone-16-pro-max device--section">
                 <div class="device-screen device-screen--lock-ios">
@@ -215,10 +229,11 @@
             <h3>Lock Screen</h3>
             <p>Compact fits one line; Two lines adds QQQ, VIX, and VXN under the demo NLV and day change.</p>
           </article>
-          <article class="bento-tile bento-watch">
+          <article class="bento-tile bento-watch bento-carousel-slide" aria-label="Apple Watch design concept">
+            <span class="concept-badge">Design concept</span>
             <figure class="device device--watch-s10 device--section-watch">
               <div class="device-screen">
-                <div class="watch-ui-canvas watch-ui--main" role="img" aria-label="Apple Watch book glance on the demo NLV and day change.">
+                <div class="watch-ui-canvas watch-ui--main" role="img" aria-label="Design concept: Apple Watch glance mock with demo NLV and day change — not in the Convexa app yet.">
                   <div class="watch-top" aria-hidden="true">
                     <span class="watch-fresh">12s</span>
                     <span class="watch-top-time">9:41</span>
@@ -240,9 +255,27 @@
               </picture>
             </figure>
             <h3>Apple Watch</h3>
-            <p>A glanceable view of the same demo book on your wrist.</p>
+            <p class="bento-watch-disclaimer">Apple Watch app is a design concept — not in Convexa yet.</p>
           </article>
-          <article class="bento-tile bento-island" id="island-widgets">
+          <article class="bento-tile bento-island bento-carousel-slide bento-slide-island" id="island-slide" aria-label="Dynamic Island">
+            <div class="bento-tiles-wrap tiles bento-tiles-wrap--island-only">
+              <img class="tile-island-compact" src="assets/10-island-compact.webp" width="472" height="149" loading="lazy" alt="Compact Dynamic Island on the demo book.">
+              <img class="tile-island-expanded" src="assets/11-island-expanded.webp" width="1206" height="218" loading="lazy" alt="Expanded Dynamic Island on the demo book.">
+            </div>
+            <h3>Dynamic Island</h3>
+            <p>NLV and the day change in the compact pill; expanded shows the same live P&amp;L for a glance.</p>
+          </article>
+          <article class="bento-tile bento-widgets bento-carousel-slide bento-slide-widgets" aria-label="Home Screen widgets">
+            <div class="bento-tiles-wrap tiles bento-tiles-wrap--widgets-only">
+              <div class="tile-row">
+                <img class="tile-widget-small" src="assets/12-widget-small.webp" width="462" height="409" loading="lazy" alt="Small widget on the demo book.">
+                <img class="tile-widget-medium" src="assets/12-widget-medium.webp" width="1036" height="420" loading="lazy" alt="Medium widget on the demo book.">
+              </div>
+            </div>
+            <h3>Home Screen widgets</h3>
+            <p>Small and medium widgets on the demo book — the Lock Screen strip shows figures to the cent.</p>
+          </article>
+          <div class="bento-island-widgets-cluster bento-tile bento-island bento-desktop-only" id="island-widgets">
             <div class="bento-tiles-wrap tiles">
               <img class="tile-island-compact" src="assets/10-island-compact.webp" width="472" height="149" loading="lazy" alt="Compact Dynamic Island on the demo book.">
               <img class="tile-island-expanded" src="assets/11-island-expanded.webp" width="1206" height="218" loading="lazy" alt="Expanded Dynamic Island on the demo book.">
@@ -253,7 +286,9 @@
             </div>
             <h3>Dynamic Island &amp; widgets</h3>
             <p>NLV and the day change in the Dynamic Island; the expanded Island shows the same live P&amp;L, rounded for a glance; the Lock Screen strip shows it to the cent. Home Screen widgets ship in small and medium sizes on the demo book.</p>
-          </article>
+          </div>
+          </div>
+          <div class="carousel-dots bento-dots" id="bento-dots" role="tablist" aria-label="Feature slides"></div>
         </div>
       </div>
     </section>
