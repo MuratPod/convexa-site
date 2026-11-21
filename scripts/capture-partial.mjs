@@ -1,7 +1,12 @@
 import { chromium } from 'playwright';
 import { writeFileSync, mkdirSync } from 'fs';
 import { join } from 'path';
-import { assertLockLiveActivityStrip, assertWatchTextFits } from './capture-assertions.mjs';
+import {
+  assertLockLiveActivityStrip,
+  assertWatchTextFits,
+  assertGalleryHeader,
+  assertBentoRowHeights,
+} from './capture-assertions.mjs';
 
 const BASE = process.env.BASE_URL || 'http://127.0.0.1:8787';
 const OUT = '/opt/cursor/artifacts';
@@ -264,6 +269,12 @@ for (const w of widths) {
   }
   await assertLockLiveActivityStrip(page);
   await assertWatchTextFits(page);
+  if ([768, 1024, 1280, 1440].includes(w)) {
+    await assertGalleryHeader(page, w);
+  }
+  if (w >= 1024) {
+    await assertBentoRowHeights(page, w);
+  }
   const issues = await layoutChecks(page, w);
   const tileIssues = await tilesChildrenFit(page);
   const widgets = await widgetImgWidths(page);

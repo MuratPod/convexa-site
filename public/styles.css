@@ -1434,51 +1434,38 @@ html.nav-menu-open .site-nav {
 }
 
 .gallery-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  flex-wrap: wrap;
   margin-bottom: 24px;
 }
 
-@media (min-width: 901px) {
-  .gallery-header {
-    display: grid;
-    gap: 20px;
-    align-items: center;
-    grid-template-columns:
-      minmax(0, 1fr)
-      minmax(0, calc((100% - 40px) / 3))
-      minmax(0, calc((100% - 40px) / 3))
-      minmax(0, calc((100% - 40px) / 3));
-  }
-
-  .gallery-header-copy {
-    grid-column: 1;
-  }
-
-  .gallery-controls {
-    grid-column: 4;
-    justify-self: end;
-  }
+.gallery-header-copy {
+  width: 100%;
+  min-width: 0;
 }
 
-@media (min-width: 901px) and (max-width: 1100px) {
-  .gallery-header {
-    grid-template-columns:
-      minmax(0, 1fr)
-      minmax(0, calc((100% - 20px) / 2))
-      minmax(0, calc((100% - 20px) / 2));
-  }
+.gallery-title-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 24px;
+  width: 100%;
+}
 
-  .gallery-controls {
-    grid-column: 3;
+.gallery-title-row h2 {
+  flex: 1 1 auto;
+  min-width: 0;
+  margin: 0;
+}
+
+@media (max-width: 900px) {
+  .gallery-title-row {
+    flex-wrap: wrap;
+    gap: 16px;
   }
 }
 
 .gallery-controls {
   display: flex;
+  flex: 0 0 auto;
   gap: 10px;
 }
 
@@ -1581,20 +1568,23 @@ html.nav-menu-open .site-nav {
 @media (min-width: 1024px) {
   .bento-grid {
     grid-template-columns: 3fr 2fr;
-    align-items: center;
+    align-items: stretch;
   }
 
   .bento-lock {
     grid-column: 1;
     grid-row: 1;
-    align-self: stretch;
   }
 
   .bento-watch {
     grid-column: 2;
     grid-row: 1;
+    align-self: stretch;
     justify-content: center;
-    align-self: center;
+  }
+
+  .bento-watch .device--section-watch {
+    --device-width: clamp(268px, 18vw, 280px);
   }
 
   .bento-island {

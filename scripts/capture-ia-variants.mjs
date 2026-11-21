@@ -1,9 +1,14 @@
 import { chromium } from 'playwright';
-import { assertLockLiveActivityStrip, assertWatchTextFits } from './capture-assertions.mjs';
+import {
+  assertLockLiveActivityStrip,
+  assertWatchTextFits,
+  assertGalleryHeader,
+  assertBentoRowHeights,
+} from './capture-assertions.mjs';
 
 const BASE = process.env.BASE_URL || 'http://127.0.0.1:8787';
 const paths = ['/', '/a/', '/b/', '/c/'];
-const widths = [360, 390, 768, 1024, 1440];
+const widths = [390, 768, 1024, 1280, 1440];
 
 const browser = await chromium.launch();
 const report = {};
@@ -41,6 +46,10 @@ for (const path of paths) {
     }
     await assertLockLiveActivityStrip(page);
     await assertWatchTextFits(page);
+    if (path === '/' || path === '/b/') {
+      await assertGalleryHeader(page, w);
+      await assertBentoRowHeights(page, w);
+    }
 
     if (path === '/a/' && w >= 1024) {
       await page.evaluate(() => window.scrollTo(0, 0));

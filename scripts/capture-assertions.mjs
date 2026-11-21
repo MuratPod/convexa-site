@@ -70,6 +70,58 @@ export async function assertLockLiveActivityStrip(page) {
 }
 
 /** @param {import('playwright').Page} page */
+export async function assertGalleryHeader(page, vw) {
+  if (vw < 768) return;
+  const data = await page.evaluate(() => {
+    const h2 = document.querySelector('#h-gallery');
+    const controls = document.querySelector('.gallery-controls');
+    const track = document.querySelector('.gallery-track');
+    if (!h2 || !controls) return { skip: true };
+    const h2Style = getComputedStyle(h2);
+    const lh = Number.parseFloat(h2Style.lineHeight);
+    const lineHeight = Number.isFinite(lh) ? lh : Number.parseFloat(h2Style.fontSize) * 1.25;
+    const hr = h2.getBoundingClientRect();
+    const cr = controls.getBoundingClientRect();
+    const tr = track?.getBoundingClientRect();
+    const h2Center = hr.top + hr.height / 2;
+    const controlCenter = cr.top + cr.height / 2;
+    return {
+      h2Height: hr.height,
+      lineHeight,
+      maxH: lineHeight * 2.5,
+      vDelta: Math.abs(h2Center - controlCenter),
+      trackRight: tr?.right ?? null,
+      controlsRight: cr.right,
+    };
+  });
+  if (data.skip) return;
+  if (data.h2Height > data.maxH + 0.5) {
+    throw new Error(`gallery h2 height ${data.h2Height} > 2.5×line-height (${data.maxH}) @ ${vw}`);
+  }
+  if (data.vDelta > 8) {
+    throw new Error(`gallery arrows not centered with h2: Δ${data.vDelta}px @ ${vw}`);
+  }
+  if (vw >= 901 && data.trackRight != null && Math.abs(data.controlsRight - data.trackRight) > 6) {
+    throw new Error(`gallery controls misaligned with track right @ ${vw}: ${JSON.stringify(data)}`);
+  }
+}
+
+/** @param {import('playwright').Page} page */
+export async function assertBentoRowHeights(page, vw) {
+  if (vw < 1024) return;
+  const diff = await page.evaluate(() => {
+    const lock = document.querySelector('.bento-lock.bento-tile');
+    const watch = document.querySelector('.bento-watch.bento-tile');
+    if (!lock || !watch) return null;
+    return Math.abs(lock.getBoundingClientRect().height - watch.getBoundingClientRect().height);
+  });
+  if (diff == null) return;
+  if (diff > 2) {
+    throw new Error(`bento lock/watch tile height mismatch: ${diff}px @ ${vw}`);
+  }
+}
+
+/** @param {import('playwright').Page} page */
 export async function assertWatchTextFits(page) {
   const bad = await page.evaluate(() => {
     const issues = [];
