@@ -338,6 +338,175 @@ export async function assertLockCloseupInTile(page, vw) {
 }
 
 /** @param {import('playwright').Page} page */
+export async function assertBentoVisibilityMode(page, vw) {
+  const narrow = [360, 390, 768];
+  const wide = [1024, 1440];
+  if (!narrow.includes(vw) && !wide.includes(vw)) return;
+  const bad = await page.evaluate((isNarrow) => {
+    const issues = [];
+    if (isNarrow) {
+      for (const el of document.querySelectorAll('.bento-desktop-only')) {
+        const disp = getComputedStyle(el).display;
+        if (disp !== 'none') {
+          issues.push({ el: el.id || el.className, display: disp });
+        }
+      }
+    } else {
+      for (const el of document.querySelectorAll('.bento-carousel-slide.bento-slide-island, .bento-carousel-slide.bento-slide-widgets')) {
+        const disp = getComputedStyle(el).display;
+        if (disp !== 'none') {
+          issues.push({ el: el.getAttribute('aria-label') || el.className, display: disp });
+        }
+      }
+      const cluster = document.getElementById('island-widgets');
+      if (cluster && getComputedStyle(cluster).display === 'none') {
+        issues.push({ el: 'island-widgets', display: 'none' });
+      }
+    }
+    return issues;
+  }, narrow.includes(vw));
+  if (bad.length) {
+    throw new Error(`bento visibility @ ${vw}: ${JSON.stringify(bad)}`);
+  }
+}
+
+/** @param {import('playwright').Page} page */
+export async function assertBentoLastSlideInTrack(page, vw) {
+  if (![360, 390, 768].includes(vw)) return;
+  await page.evaluate(() => {
+    const track = document.getElementById('bento-track');
+    if (track) track.scrollTo({ left: 0, behavior: 'auto' });
+  });
+  await page.waitForTimeout(120);
+  const slideCount = await page.evaluate(() => (
+    [...document.querySelectorAll('.bento-carousel-slide')].filter(
+      (el) => getComputedStyle(el).display !== 'none',
+    ).length
+  ));
+  const clicks = Math.max(0, slideCount - 1);
+  const next = page.locator('#bento-next');
+  for (let i = 0; i < clicks; i += 1) {
+    await next.click({ noWaitAfter: true });
+  }
+  await page.waitForTimeout(1000);
+  const bad = await page.evaluate(() => {
+    const track = document.getElementById('bento-track');
+    if (!track) return { err: 'no track' };
+    const pad = Number.parseFloat(getComputedStyle(track).scrollPaddingInlineStart) || 0;
+    const slides = [...track.querySelectorAll('.bento-carousel-slide')].filter(
+      (el) => getComputedStyle(el).display !== 'none',
+    );
+    const last = slides[slides.length - 1];
+    if (!last) return { err: 'no slides' };
+    const tr = track.getBoundingClientRect();
+    const sr = last.getBoundingClientRect();
+    const inView = sr.left >= tr.left - 3 && sr.right <= tr.right + 3;
+    const anchor = track.scrollLeft + (Number.parseFloat(getComputedStyle(track).scrollPaddingInlineStart) || 0);
+    let idx = 0;
+    let best = Infinity;
+    slides.forEach((slide, i) => {
+      const d = Math.abs(slide.offsetLeft - anchor);
+      if (d < best) {
+        best = d;
+        idx = i;
+      }
+    });
+    const trailing = [...track.children].filter((ch) => {
+      if (getComputedStyle(ch).display === 'none') return false;
+      const r = ch.getBoundingClientRect();
+      if (r.width < 2) return false;
+      return r.left > sr.right - 2 && ch !== last;
+    }).map((ch) => ({
+      tag: ch.tagName,
+      cls: ch.className?.slice?.(0, 48),
+      left: ch.getBoundingClientRect().left,
+    }));
+    return {
+      inView,
+      idx,
+      lastIdx: slides.length - 1,
+      scrollLeft: track.scrollLeft,
+      maxScroll: track.scrollWidth - track.clientWidth,
+      slide: { l: sr.left, r: sr.right },
+      track: { l: tr.left, r: tr.right },
+      trailing,
+    };
+  });
+  if (bad.err) throw new Error(`bento last slide @ ${vw}: ${bad.err}`);
+  if (bad.idx !== bad.lastIdx) {
+    throw new Error(`bento activeIndex ${bad.idx} not last (${bad.lastIdx}) @ ${vw}: ${JSON.stringify(bad)}`);
+  }
+  if (!bad.inView) {
+    throw new Error(`bento last slide not fully in track @ ${vw}: ${JSON.stringify(bad)}`);
+  }
+  if (bad.trailing.length) {
+    throw new Error(`visible elements right of last bento slide @ ${vw}: ${JSON.stringify(bad)}`);
+  }
+}
+
+/** @param {import('playwright').Page} page */
+export async function assertGalleryLastSlideInTrack(page, vw) {
+  if (![360, 390, 768, 1440].includes(vw)) return;
+  await page.evaluate(() => {
+    const track = document.getElementById('gallery-track');
+    if (track) track.scrollTo({ left: 0, behavior: 'auto' });
+  });
+  await page.waitForTimeout(120);
+  const slideCount = await page.locator('.gallery-slide').count();
+  const next = page.locator('#gallery-next');
+  for (let i = 0; i < slideCount - 1; i += 1) {
+    await next.click({ noWaitAfter: true });
+  }
+  await page.waitForTimeout(1200);
+  await page.evaluate(() => {
+    const track = document.getElementById('gallery-track');
+    const slides = [...document.querySelectorAll('.gallery-slide')];
+    const last = slides[slides.length - 1];
+    if (!track || !last) return;
+    const pad = Number.parseFloat(getComputedStyle(track).scrollPaddingInlineStart) || 0;
+    track.scrollTo({ left: Math.max(0, track.scrollWidth - track.clientWidth), behavior: 'auto' });
+  });
+  await page.waitForTimeout(80);
+  const bad = await page.evaluate(() => {
+    const track = document.getElementById('gallery-track');
+    const slides = [...document.querySelectorAll('.gallery-slide')];
+    const last = slides[slides.length - 1];
+    if (!track || !last) return { err: 'missing track/slide' };
+    const tr = track.getBoundingClientRect();
+    const sr = last.getBoundingClientRect();
+    const inView = sr.left >= tr.left - 4 && sr.right <= tr.right + 4;
+    const pad = Number.parseFloat(getComputedStyle(track).scrollPaddingInlineStart) || 0;
+    const anchor = track.scrollLeft + pad;
+    let idx = 0;
+    let best = Infinity;
+    slides.forEach((slide, i) => {
+      const d = Math.abs(slide.offsetLeft - anchor);
+      if (d < best) {
+        best = d;
+        idx = i;
+      }
+    });
+    return {
+      inView,
+      idx,
+      lastIdx: slides.length - 1,
+      scrollLeft: track.scrollLeft,
+      maxScroll: track.scrollWidth - track.clientWidth,
+      slide: { l: sr.left, r: sr.right, w: sr.width },
+      track: { l: tr.left, r: tr.right, w: tr.width },
+      devW: last.querySelector('.device--section')?.getBoundingClientRect().width,
+    };
+  });
+  if (bad.err) throw new Error(`gallery last slide @ ${vw}: ${bad.err}`);
+  if (bad.idx !== bad.lastIdx) {
+    throw new Error(`gallery activeIndex ${bad.idx} not last @ ${vw}: ${JSON.stringify(bad)}`);
+  }
+  if (!bad.inView) {
+    throw new Error(`gallery last slide not in track view @ ${vw}: ${JSON.stringify(bad)}`);
+  }
+}
+
+/** @param {import('playwright').Page} page */
 export async function assertBentoMobileCarousel(page, vw) {
   const narrow = [360, 390, 768];
   if (!narrow.includes(vw)) return;

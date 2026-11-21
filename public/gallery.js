@@ -54,6 +54,9 @@
       const slides = visibleSlides();
       const slide = slides[index];
       if (!slide) return null;
+      if (index === slides.length - 1) {
+        return Math.max(0, track.scrollWidth - track.clientWidth);
+      }
       return Math.max(0, slide.offsetLeft - scrollPaddingStart());
     }
 

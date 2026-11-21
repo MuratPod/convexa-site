@@ -11,6 +11,9 @@ import {
   assertLockCloseupInTile,
   assertBentoMobileCarousel,
   assertBentoSlideImagesContained,
+  assertBentoVisibilityMode,
+  assertBentoLastSlideInTrack,
+  assertGalleryLastSlideInTrack,
   assertGalleryRapidNextToSettings,
   assertHeroShowcaseAlignment,
 } from './capture-assertions.mjs';
@@ -287,12 +290,20 @@ for (const w of widths) {
   if ([360, 390, 768].includes(w)) {
     await page.locator('#bento-track').scrollIntoViewIfNeeded();
     await page.waitForTimeout(60);
+    await assertBentoVisibilityMode(page, w);
     await assertBentoMobileCarousel(page, w);
     await assertBentoSlideImagesContained(page, w);
+    await assertBentoLastSlideInTrack(page, w);
+    await page.locator('#gallery-track').scrollIntoViewIfNeeded();
+    await assertGalleryLastSlideInTrack(page, w);
+  }
+  if ([1024, 1440].includes(w)) {
+    await assertBentoVisibilityMode(page, w);
   }
   if (w === 1440) {
     await page.locator('#gallery-track').scrollIntoViewIfNeeded();
     await assertGalleryRapidNextToSettings(page, w);
+    await assertGalleryLastSlideInTrack(page, w);
   }
   if (w >= 1024) {
     await assertBentoRowHeights(page, w);
