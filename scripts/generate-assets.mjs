@@ -14,6 +14,51 @@ const twoLinesCardCrop = {
   height: 225,
 };
 
+/** Trim near-black / transparent margins; keep 1px pad so anti-aliased UI isn’t clipped. */
+async function trimEmptyMargins(inputPath, { bgLum = 18, pad = 1 } = {}) {
+  const img = sharp(inputPath).ensureAlpha();
+  const { data, info } = await img.raw().toBuffer({ resolveWithObject: true });
+  const w = info.width;
+  const h = info.height;
+  const lum = (r, g, b) => 0.299 * r + 0.587 * g + 0.114 * b;
+  let minX = w;
+  let minY = h;
+  let maxX = 0;
+  let maxY = 0;
+  let n = 0;
+  for (let y = 0; y < h; y += 1) {
+    for (let x = 0; x < w; x += 1) {
+      const i = (y * w + x) * 4;
+      const a = data[i + 3];
+      const l = lum(data[i], data[i + 1], data[i + 2]);
+      if (a < 8 || l <= bgLum) continue;
+      n += 1;
+      minX = Math.min(minX, x);
+      minY = Math.min(minY, y);
+      maxX = Math.max(maxX, x);
+      maxY = Math.max(maxY, y);
+    }
+  }
+  if (!n) return null;
+  const left = Math.max(0, minX - pad);
+  const top = Math.max(0, minY - pad);
+  const right = Math.min(w - 1, maxX + pad);
+  const bottom = Math.min(h - 1, maxY + pad);
+  return {
+    left,
+    top,
+    width: right - left + 1,
+    height: bottom - top + 1,
+  };
+}
+
+const trimDests = new Set([
+  '10-island-compact.webp',
+  '11-island-expanded.webp',
+  '12-widget-small.webp',
+  '12-widget-medium.webp',
+]);
+
 const map = [
   ['01-home-portfolio.png', '01-home.webp'],
   ['01-home-portfolio-bottom.png', '01-home-bottom.webp'],
@@ -36,8 +81,16 @@ const map = [
 for (const [src, dest] of map) {
   const input = join(screensDir, src);
   const output = join(outDir, dest);
-  const meta = await sharp(input).metadata();
-  await sharp(input).webp({ quality }).toFile(output);
+  let pipeline = sharp(input);
+  if (trimDests.has(dest)) {
+    const crop = await trimEmptyMargins(input);
+    if (crop) {
+      pipeline = sharp(input).extract(crop);
+      console.log(`${dest} crop ${crop.width}x${crop.height} @ ${crop.left},${crop.top}`);
+    }
+  }
+  const meta = await pipeline.metadata();
+  await pipeline.webp({ quality }).toFile(output);
   console.log(`${dest} ${meta.width}x${meta.height}`);
 }
 

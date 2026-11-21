@@ -162,6 +162,87 @@ export async function assertHeroShowcaseAlignment(page, vw) {
 }
 
 /** @param {import('playwright').Page} page */
+export async function assertBentoIslandVisualGaps(page, vw) {
+  if (vw < 1024) return;
+  const result = await page.evaluate(async () => {
+    const tiles = document.querySelector('#island-widgets .tiles, .bento-island .tiles');
+    if (!tiles) return { skip: true };
+
+    function contentBBox(img) {
+      const w = img.naturalWidth;
+      const h = img.naturalHeight;
+      if (!w || !h || !img.complete) return null;
+      const c = document.createElement('canvas');
+      c.width = w;
+      c.height = h;
+      const ctx = c.getContext('2d');
+      if (!ctx) return null;
+      ctx.drawImage(img, 0, 0);
+      const { data } = ctx.getImageData(0, 0, w, h);
+      let minX = w;
+      let minY = h;
+      let maxX = 0;
+      let maxY = 0;
+      const bg = 22;
+      for (let y = 0; y < h; y += 1) {
+        for (let x = 0; x < w; x += 1) {
+          const i = (y * w + x) * 4;
+          const l = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
+          if (data[i + 3] < 8 || l <= bg) continue;
+          minX = Math.min(minX, x);
+          minY = Math.min(minY, y);
+          maxX = Math.max(maxX, x);
+          maxY = Math.max(maxY, y);
+        }
+      }
+      if (maxX < minX) return null;
+      const r = img.getBoundingClientRect();
+      const sx = r.width / w;
+      const sy = r.height / h;
+      return {
+        top: r.top + minY * sy,
+        bottom: r.top + (maxY + 1) * sy,
+      };
+    }
+
+    const boxes = [];
+    for (const child of tiles.children) {
+      if (child.classList.contains('tile-row')) {
+        let top = Infinity;
+        let bottom = -Infinity;
+        for (const img of child.querySelectorAll('img')) {
+          const b = contentBBox(img);
+          if (b) {
+            top = Math.min(top, b.top);
+            bottom = Math.max(bottom, b.bottom);
+          }
+        }
+        if (top < Infinity) boxes.push({ top, bottom });
+      } else if (child.tagName === 'IMG') {
+        const b = contentBBox(child);
+        if (b) boxes.push(b);
+      }
+    }
+
+    const gaps = [];
+    for (let i = 0; i < boxes.length - 1; i += 1) {
+      gaps.push({ i, px: boxes[i + 1].top - boxes[i].bottom });
+    }
+    return { gaps, count: boxes.length };
+  });
+
+  if (result.skip) return;
+  for (const g of result.gaps) {
+    if (g.px > 60) {
+      throw new Error(`bento Island visual gap ${g.px.toFixed(1)}px > 60 between #${g.i} and #${g.i + 1} @ ${vw}`);
+    }
+    if (g.px < -2) {
+      throw new Error(`bento Island overlap ${g.px.toFixed(1)}px @ ${vw}`);
+    }
+  }
+}
+
+/** @param {import('playwright').Page} page */
 export async function assertBentoRowHeights(page, vw) {
   if (vw < 1024) return;
   const diff = await page.evaluate(() => {
