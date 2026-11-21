@@ -36,29 +36,24 @@
 }
 
 .tablist-wrap {
-  overflow-x: auto;
-  -webkit-overflow-scrolling: touch;
   margin-bottom: 28px;
   padding-bottom: 4px;
-  scrollbar-width: none;
-}
-
-.tablist-wrap::-webkit-scrollbar {
-  display: none;
 }
 
 [role="tablist"].tabs-pills {
   display: flex;
-  flex-wrap: nowrap;
+  flex-wrap: wrap;
+  justify-content: center;
   gap: 10px;
-  min-width: min-content;
+  max-width: 100%;
 }
 
 [role="tab"].tabs-pill {
-  flex: 0 0 auto;
+  flex: 0 1 auto;
   border: 1px solid var(--line);
   border-radius: 999px;
-  padding: 12px 20px;
+  padding: 14px 20px;
+  min-height: 48px;
   background: var(--s1);
   color: var(--tx2);
   font: inherit;
@@ -165,7 +160,13 @@
 }
 
 .eco-watch .device--section-watch {
-  --device-width: 196px;
+  --device-width: clamp(230px, 22vw, 272px);
+}
+
+@media (max-width: 1023px) {
+  .eco-watch .device--section-watch {
+    --device-width: min(272px, 76vw);
+  }
 }
 
 .eco-tiles.tiles {

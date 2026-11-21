@@ -181,8 +181,29 @@
 
 .bento-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: 1fr;
   gap: clamp(16px, 2.5vw, 28px);
+}
+
+@media (min-width: 1024px) {
+  .bento-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .bento-lock {
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  .bento-watch {
+    grid-column: 2;
+    grid-row: 1;
+  }
+
+  .bento-island {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
 }
 
 .bento-tile {
@@ -215,7 +236,7 @@
 }
 
 .bento-watch .device--section-watch {
-  --device-width: 188px;
+  --device-width: clamp(230px, 16vw, 272px);
 }
 
 .bento-tiles-wrap {
@@ -227,8 +248,8 @@
   --widget-unit: min(140px, 28vw);
 }
 
-@media (max-width: 1000px) {
-  .bento-grid {
-    grid-template-columns: 1fr;
+@media (max-width: 1023px) {
+  .bento-watch .device--section-watch {
+    --device-width: min(234px, 60vw);
   }
 }

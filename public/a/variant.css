@@ -196,7 +196,13 @@
 }
 
 .beyond-watch .device--section-watch {
-  --device-width: 200px;
+  --device-width: clamp(230px, 22vw, 272px);
+}
+
+@media (max-width: 1023px) {
+  .beyond-watch .device--section-watch {
+    --device-width: min(272px, 76vw);
+  }
 }
 
 .beyond-tiles {

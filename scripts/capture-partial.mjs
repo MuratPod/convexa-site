@@ -1,6 +1,7 @@
 import { chromium } from 'playwright';
 import { writeFileSync, mkdirSync } from 'fs';
 import { join } from 'path';
+import { assertLockLiveActivityStrip, assertWatchTextFits } from './capture-assertions.mjs';
 
 const BASE = process.env.BASE_URL || 'http://127.0.0.1:8787';
 const OUT = '/opt/cursor/artifacts';
@@ -245,6 +246,8 @@ for (const w of widths) {
   await primeImages(page, null);
   await assertIphoneScreenShapes(page);
   await assertLockCloseups(page, w);
+  await assertLockLiveActivityStrip(page);
+  await assertWatchTextFits(page);
   const issues = await layoutChecks(page, w);
   const tileIssues = await tilesChildrenFit(page);
   const widgets = await widgetImgWidths(page);

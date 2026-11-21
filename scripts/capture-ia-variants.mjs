@@ -1,8 +1,9 @@
 import { chromium } from 'playwright';
+import { assertLockLiveActivityStrip, assertWatchTextFits } from './capture-assertions.mjs';
 
 const BASE = process.env.BASE_URL || 'http://127.0.0.1:8787';
-const paths = ['/a/', '/b/', '/c/'];
-const widths = [1440, 390];
+const paths = ['/', '/a/', '/b/', '/c/'];
+const widths = [360, 390, 768, 1024, 1440];
 
 const browser = await chromium.launch();
 const report = {};
@@ -13,7 +14,8 @@ for (const path of paths) {
     const page = await browser.newPage();
     await page.setViewportSize({ width: w, height: w >= 1024 ? 900 : 844 });
     await page.goto(BASE + path, { waitUntil: 'load' });
-    const issues = await page.evaluate(() => {
+    const isVariantC = path === '/c/';
+    const issues = await page.evaluate((checkTabs) => {
       const out = [];
       const doc = document.documentElement;
       const body = document.body;
@@ -23,8 +25,35 @@ for (const path of paths) {
       if (body.scrollWidth - doc.clientWidth > 1) {
         out.push({ kind: 'body-scroll', px: body.scrollWidth - doc.clientWidth });
       }
+      if (checkTabs) {
+        const tabs = document.querySelectorAll('[role="tab"].tabs-pill');
+        const wrap = document.querySelector('.tablist-wrap');
+        if (tabs.length >= 6 && wrap && wrap.scrollWidth > wrap.clientWidth + 1) {
+          out.push({ kind: 'tabs-horizontal-clip', sw: wrap.scrollWidth, cw: wrap.clientWidth });
+        }
+      }
       return out;
-    });
+    }, isVariantC);
+    await assertLockLiveActivityStrip(page);
+    await assertWatchTextFits(page);
+
+    if (path === '/a/' && w >= 1024) {
+      await page.evaluate(() => window.scrollTo(0, 0));
+      await page.waitForFunction(() => window.scrollY < 8);
+      await page.waitForTimeout(80);
+      let active = await page.evaluate(() => document.querySelector('.story-phone-stack img.is-active')?.dataset.screen);
+      if (active !== 'home') throw new Error(`/a/ story not home at top @ ${w} (got ${active})`);
+      await page.locator('#ch-settings').scrollIntoViewIfNeeded();
+      await page.waitForTimeout(120);
+      active = await page.evaluate(() => document.querySelector('.story-phone-stack img.is-active')?.dataset.screen);
+      if (active !== 'settings') throw new Error(`/a/ story not settings when scrolled @ ${w} (got ${active})`);
+      await page.evaluate(() => window.scrollTo(0, 0));
+      await page.waitForFunction(() => window.scrollY < 8);
+      await page.waitForTimeout(150);
+      active = await page.evaluate(() => document.querySelector('.story-phone-stack img.is-active')?.dataset.screen);
+      if (active !== 'home') throw new Error(`/a/ story not home after scroll back @ ${w} (got ${active})`);
+    }
+
     if (issues.length) throw new Error(`${path}@${w}: ${JSON.stringify(issues)}`);
     report[path][w] = issues;
     await page.close();
