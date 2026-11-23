@@ -8,7 +8,7 @@
  */
 
 const CACHE_TTL = 60;
-const UA = "Mozilla/5.0 (compatible; ConvexaBuilder/1.0; +https://convexa.today/builder) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
+const UA = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36";
 const EUROPEAN = new Set([
   "SPX", "XSP", "NDX", "RUT", "VIX", "DJX", "OEX", "XEO", "MXEA", "MXEF",
   "SPXW", "RUTW", "VIXW",
@@ -84,18 +84,19 @@ function occExpiry(url) {
 }
 
 async function fetchText(url, init = {}, timeoutMs = 8000) {
-  const signal = init.signal || (typeof AbortSignal !== "undefined" && AbortSignal.timeout
+  const { noCache, ...rest } = init;
+  const signal = rest.signal || (typeof AbortSignal !== "undefined" && AbortSignal.timeout
     ? AbortSignal.timeout(timeoutMs)
     : undefined);
   const res = await fetch(url, {
-    ...init,
+    ...rest,
     signal,
     headers: {
       "user-agent": UA,
       accept: "application/json,text/plain,*/*",
-      ...(init.headers || {}),
+      ...(rest.headers || {}),
     },
-    cf: { cacheTtl: CACHE_TTL, cacheEverything: true },
+    ...(noCache ? { cf: { cacheTtl: 0, cacheEverything: false } } : {}),
   });
   const text = await res.text();
   return { res, text };
@@ -310,8 +311,12 @@ function parseNasdaqChain(json, requested, fallbackExpiry) {
       let mid = null;
       if (bid != null && ask != null && (bid > 0 || ask > 0)) mid = (Math.max(bid, 0) + Math.max(ask, bid || 0)) / 2;
       else if (last != null) mid = last;
+      const occMatch = String(row.drillDownURL || "").match(/([a-z0-9]+)[-]+(\d{6})([cp])(\d{8})$/i);
+      const contract = occMatch
+        ? `${occMatch[1].toUpperCase()}${occMatch[2]}${occMatch[3].toUpperCase()}${occMatch[4]}`
+        : (row.drillDownURL || `${requested}${expiry}${type[0].toUpperCase()}${strike}`);
       options.push({
-        contract: row.drillDownURL || `${requested}${expiry}${type[0].toUpperCase()}${strike}`,
+        contract,
         type,
         expiry,
         strike,
@@ -345,12 +350,18 @@ async function tryNasdaq(sym, expiry) {
   if (!detected) return null;
   const { ac, info } = detected;
   const infoPart = parseNasdaqInfo(info, sym);
-  const fromdate = expiry ? `${expiry}|${expiry}` : "all";
+  // Single-date fromdate works; "YYYY-MM-DD|YYYY-MM-DD" is rejected by Nasdaq.
+  // fromdate=all is only used to discover the full expiry list, then we trim
+  // the payload to the requested (or nearest) expiry so the client is small.
+  const fromdate = expiry || "all";
   const [chainJson, yld] = await Promise.all([
-    nasdaqGet(`/api/quote/${encodeURIComponent(sym)}/option-chain?assetclass=${ac}&fromdate=${encodeURIComponent(fromdate)}&money=all`),
+    nasdaqGet(`/api/quote/${encodeURIComponent(sym)}/option-chain?assetclass=${ac}&fromdate=${encodeURIComponent(fromdate)}`),
     nasdaqSummaryYield(sym, ac),
   ]);
   const chain = parseNasdaqChain(chainJson, sym, expiry);
+  let options = chain.options;
+  const want = expiry || (chain.expirations && chain.expirations[0]);
+  if (want) options = options.filter((o) => o.expiry === want);
   return {
     symbol: infoPart.symbol,
     name: infoPart.name,
@@ -368,7 +379,7 @@ async function tryNasdaq(sym, expiry) {
     ivAtm: null,
     assetClass: infoPart.assetClass,
     expirations: chain.expirations,
-    options: expiry ? chain.options.filter((o) => o.expiry === expiry) : chain.options,
+    options,
   };
 }
 
@@ -451,27 +462,137 @@ function parseYahoo(json, requested, filterExpiry) {
   };
 }
 
-async function tryYahoo(sym, expiry) {
+
+let yahooAuth = { crumb: null, cookie: "", exp: 0 };
+
+function collectCookies(res) {
+  if (res.headers && typeof res.headers.getSetCookie === "function") {
+    return res.headers.getSetCookie().map((c) => String(c).split(";")[0]).filter(Boolean);
+  }
+  const raw = res.headers.get("set-cookie");
+  return raw ? [String(raw).split(";")[0]] : [];
+}
+
+async function followForCookies(startUrl) {
+  const cookieParts = [];
+  let current = startUrl;
+  for (let hop = 0; hop < 6; hop++) {
+    const cookie = [...new Set(cookieParts)].join("; ");
+    const { res } = await fetchText(current, {
+      redirect: "manual",
+      noCache: true,
+      headers: {
+        accept: "text/html,application/xhtml+xml,*/*",
+        cookie,
+      },
+    }, 5000);
+    cookieParts.push(...collectCookies(res));
+    if (res.status >= 300 && res.status < 400) {
+      const loc = res.headers.get("location");
+      if (!loc) break;
+      current = new URL(loc, current).toString();
+      continue;
+    }
+    break;
+  }
+  return cookieParts;
+}
+
+async function rawYahooFetch(url, headers = {}, timeoutMs = 8000) {
+  const res = await fetch(url, {
+    headers: {
+      "user-agent": UA,
+      "accept": "text/html,application/xhtml+xml,text/plain,*/*",
+      "accept-language": "en-US,en;q=0.9",
+      ...headers,
+    },
+    signal: AbortSignal.timeout(timeoutMs),
+  });
+  const text = await res.text();
+  return { res, text };
+}
+
+async function getYahooAuth() {
+  if (yahooAuth.crumb && yahooAuth.exp > Date.now() + 5000) return yahooAuth;
+  const cookieParts = [];
+  // Handshake documented to work from Cloudflare Workers:
+  // GET fc.yahoo.com (often 404) → A1/A3 cookies, then GET /v1/test/getcrumb.
+  try {
+    const seed = await rawYahooFetch("https://fc.yahoo.com/");
+    cookieParts.push(...collectCookies(seed.res));
+  } catch (err) {
+    console.warn("yahoo_cookie_fail", "fc", String(err && err.message ? err.message : err));
+  }
+  if (!cookieParts.length) {
+    try {
+      cookieParts.push(...await followForCookies("https://fc.yahoo.com/"));
+    } catch (err) {
+      console.warn("yahoo_cookie_fail", "fc_follow", String(err && err.message ? err.message : err));
+    }
+  }
+  if (!cookieParts.some((c) => /^A[13S]=/.test(c))) {
+    try {
+      const home = await rawYahooFetch("https://finance.yahoo.com/");
+      cookieParts.push(...collectCookies(home.res));
+    } catch (err) {
+      console.warn("yahoo_cookie_fail", "home", String(err && err.message ? err.message : err));
+    }
+  }
+  const cookie = [...new Set(cookieParts)].join("; ");
+  let lastCrumb = { status: 0, body: "", host: "" };
+  const crumbHosts = [
+    "https://query1.finance.yahoo.com/v1/test/getcrumb",
+    "https://query2.finance.yahoo.com/v1/test/getcrumb",
+  ];
+  for (const url of crumbHosts) {
+    try {
+      const { res, text } = await rawYahooFetch(url, {
+        cookie,
+        accept: "text/plain,*/*",
+        referer: "https://finance.yahoo.com/",
+      }, 5000);
+      const crumb = String(text || "").trim();
+      lastCrumb = { status: res.status, body: crumb.slice(0, 80), host: url };
+      if (res.ok && crumb && crumb.length < 80 && !crumb.includes("{") && !crumb.includes("<") && !/too many/i.test(crumb)) {
+        yahooAuth = { crumb, cookie, exp: Date.now() + 15 * 60 * 1000, lastCrumb };
+        return yahooAuth;
+      }
+      console.warn("yahoo_crumb_skip", res.status, crumb.slice(0, 80), "cookies", cookieParts.length);
+      if (res.status === 429) {
+        yahooAuth = { crumb: null, cookie, exp: Date.now() + 60 * 1000, lastCrumb };
+        return yahooAuth;
+      }
+    } catch (err) {
+      lastCrumb = { status: 0, body: String(err && err.message ? err.message : err), host: url };
+      console.warn("yahoo_crumb_fail", String(err && err.message ? err.message : err));
+    }
+  }
+  yahooAuth = { crumb: null, cookie, exp: 0, lastCrumb };
+  return yahooAuth;
+}
+
+async function yahooOptions(sym, expiry, auth) {
   const hosts = ["https://query1.finance.yahoo.com", "https://query2.finance.yahoo.com"];
-  const dateParam = expiry ? `?date=${Math.floor(new Date(`${expiry}T16:00:00-05:00`).getTime() / 1000)}` : "";
+  const dateParam = expiry
+    ? `date=${Math.floor(new Date(`${expiry}T16:00:00-05:00`).getTime() / 1000)}&`
+    : "";
   const headers = {
     accept: "application/json",
     referer: "https://finance.yahoo.com/",
     origin: "https://finance.yahoo.com",
+    cookie: auth.cookie,
   };
   for (const host of hosts) {
-    const url = `${host}/v7/finance/options/${encodeURIComponent(sym)}${dateParam}`;
+    const url = `${host}/v7/finance/options/${encodeURIComponent(sym)}?${dateParam}crumb=${encodeURIComponent(auth.crumb)}`;
     try {
-      const { res, text } = await fetchText(url, { headers }, 6000);
+      const { res, text } = await fetchText(url, { headers }, 8000);
       if (!res.ok || text.trim().startsWith("<") || text.includes("Too Many Requests")) {
         console.warn("yahoo_skip", res.status, host);
+        if (res.status === 401) yahooAuth = { crumb: null, cookie: "", exp: 0 };
         continue;
       }
       const parsed = parseYahoo(JSON.parse(text), sym, expiry);
-      if (parsed && parsed.price) {
-        // If we only got one expiry pack but have the expiration list, that's enough for the first paint.
-        return parsed;
-      }
+      if (parsed && parsed.price) return parsed;
     } catch (err) {
       console.warn("yahoo_fail", host, String(err && err.message ? err.message : err));
     }
@@ -479,40 +600,62 @@ async function tryYahoo(sym, expiry) {
   return null;
 }
 
-async function loadChain(sym, expiry) {
-  // Try public delayed sources in parallel. Prefer Cboe (listed IV), then Yahoo, then Nasdaq.
-  const cboeP = tryCboe(sym);
-  const yahooP = tryYahoo(sym, expiry);
-  const nasP = tryNasdaq(sym, expiry);
-  const cboe = await cboeP;
-  if (cboe && cboe.price && cboe.options.length) {
-    cboe.rate = DEFAULT_RATE;
-    if (expiry) cboe.options = cboe.options.filter((o) => o.expiry === expiry);
-    return cboe;
-  }
-  try {
-    const yahoo = await yahooP;
-    if (yahoo && yahoo.price) {
-      yahoo.rate = DEFAULT_RATE;
-      if (expiry && yahoo.options.length) {
-        yahoo.options = yahoo.options.filter((o) => o.expiry === expiry);
-      }
-      return yahoo;
+async function tryYahoo(sym, expiry) {
+  const auth = await getYahooAuth();
+  if (!auth || !auth.crumb) return null;
+  const first = await yahooOptions(sym, expiry, auth);
+  if (!first) return null;
+  // When no specific expiry is requested, pull a handful of later expiries so
+  // calendars / later templates have contracts without a 2MB dump.
+  if (!expiry && first.expirations && first.expirations.length > 1) {
+    const have = new Set(first.options.map((o) => o.expiry));
+    const extra = first.expirations.filter((e) => !have.has(e)).slice(0, 6);
+    const packs = await Promise.all(extra.map((e) => yahooOptions(sym, e, auth)));
+    for (const pack of packs) {
+      if (pack && pack.options) first.options.push(...pack.options);
     }
-  } catch (err) {
-    console.warn("yahoo_fail", String(err && err.message ? err.message : err));
   }
-  let nas = null;
-  try {
-    nas = await nasP;
-  } catch (err) {
-    console.warn("nasdaq_fail", String(err && err.message ? err.message : err));
+  return first;
+}
+
+function firstUseful(promises, useful) {
+  return new Promise((resolve) => {
+    let pending = promises.length;
+    let settled = false;
+    if (!pending) return resolve(null);
+    for (const p of promises) {
+      Promise.resolve(p).then((value) => {
+        if (!settled && useful(value)) {
+          settled = true;
+          resolve(value);
+          return;
+        }
+        pending -= 1;
+        if (!settled && pending === 0) resolve(null);
+      }).catch((err) => {
+        console.warn("source_fail", String(err && err.message ? err.message : err));
+        pending -= 1;
+        if (!settled && pending === 0) resolve(null);
+      });
+    }
+  });
+}
+
+async function loadChain(sym, expiry) {
+  // Nasdaq delayed option-chain is the reliable edge source today. Yahoo is
+  // preferable when the crumb handshake works (it includes IV) but getcrumb
+  // often 429s from shared Worker IPs. Cboe is typically blocked (403).
+  const picked = await firstUseful([
+    tryYahoo(sym, expiry),
+    tryNasdaq(sym, expiry),
+    tryCboe(sym),
+  ], (data) => data && data.price && (!expiry || (data.options && data.options.length)));
+  if (!picked) return null;
+  picked.rate = DEFAULT_RATE;
+  if (expiry && picked.options && picked.options.length) {
+    picked.options = picked.options.filter((o) => o.expiry === expiry);
   }
-  if (nas) {
-    nas.rate = DEFAULT_RATE;
-    return nas;
-  }
-  return null;
+  return picked;
 }
 
 export default {
@@ -534,8 +677,11 @@ export default {
     if (url.pathname.startsWith("/api/")) {
       const cache = caches.default;
       const cacheKey = new Request(url.toString(), { method: "GET" });
-      const hit = await cache.match(cacheKey);
-      if (hit) return hit;
+      const isHealth = url.pathname.replace(/\/+$/, "") === "/api/health";
+      if (!isHealth) {
+        const hit = await cache.match(cacheKey);
+        if (hit) return hit;
+      }
 
       let response;
       try {
@@ -544,10 +690,22 @@ export default {
         response = fail(502, "Upstream quotes are unavailable right now.");
         console.error("api_error", String(err && err.message ? err.message : err));
       }
-      if (response.status === 200 && ctx && ctx.waitUntil) {
+      if (!isHealth && response.status === 200 && ctx && ctx.waitUntil) {
         ctx.waitUntil(cache.put(cacheKey, response.clone()));
       }
       return response;
+    }
+
+    // Optional deploy-time override so a Worker-only publish can ship a new
+    // /builder/app.js without a full assets upload.
+    if (url.pathname === "/builder/app.js" && typeof globalThis.BUILDER_APP_JS === "string") {
+      return new Response(globalThis.BUILDER_APP_JS, {
+        status: 200,
+        headers: {
+          "content-type": "application/javascript; charset=utf-8",
+          "cache-control": "public, max-age=60",
+        },
+      });
     }
 
     // Directory URL /builder → /builder/
@@ -568,6 +726,7 @@ async function handleApi(url) {
   if (path === "/api/health") {
     return ok({ ok: true, service: "convexa-builder" });
   }
+
 
   if (path === "/api/quote" || path === "/api/chain" || path === "/api/expirations") {
     const sym = cleanSymbol(url.searchParams.get("symbol") || url.searchParams.get("s"));
