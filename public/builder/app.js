@@ -43,6 +43,8 @@ const SYMBOL = BUILDER_SYMBOL;
 const DEFAULT_RANGE = 0.12;
 const SAVE_KEY = "convexa-builder-saved-v2";
 const NOTICE_KEY = "convexa-builder-notice-v2";
+const COMM_KEY = "convexa-builder-comm-v1";
+const EXP_KEY = "convexa-builder-last-expiry-v1";
 const HOLIDAYS = new Set([
   "2026-01-01", "2026-01-19", "2026-02-16", "2026-04-03", "2026-05-25", "2026-06-19",
   "2026-07-03", "2026-09-07", "2026-11-26", "2026-12-25",
@@ -73,11 +75,60 @@ const state = {
   posTab: "open",
   hoverPx: null,
   histRange: "5d",
+  liveFast: false,
+  chipDrag: false,
+  targetPx: null,
 };
 
 const $ = (id) => document.getElementById(id);
 const etDate = (ms, opts) => new Date(ms).toLocaleDateString("en-US", { timeZone: "America/New_York", ...opts });
 const ymdET = (ms) => new Intl.DateTimeFormat("en-CA", { timeZone: "America/New_York", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date(ms));
+function dayOrdinal(n) {
+  const v = n % 100;
+  const suf = (v >= 11 && v <= 13) ? "th" : ({ 1: "st", 2: "nd", 3: "rd" }[n % 10] || "th");
+  return n + suf;
+}
+function dateShortLabel(t) {
+  const wd = etDate(t, { weekday: "short" });
+  const mon = etDate(t, { month: "short" });
+  const day = Number(etDate(t, { day: "numeric" }));
+  return `${wd} ${mon} ${dayOrdinal(day)}`;
+}
+function rememberExpiry(iso) {
+  if (!iso) return;
+  try { localStorage.setItem(EXP_KEY, iso); } catch { /* ignore */ }
+}
+function lastUsedExpiry() {
+  try { return localStorage.getItem(EXP_KEY); } catch { return null; }
+}
+function loadCommissions() {
+  try {
+    const c = JSON.parse(localStorage.getItem(COMM_KEY) || "null");
+    if (!c || typeof c !== "object") return;
+    if (Number.isFinite(Number(c.trade))) state.commTrade = Number(c.trade);
+    if (Number.isFinite(Number(c.contract))) state.commContract = Number(c.contract);
+    if (typeof c.rt === "boolean") state.commRt = c.rt;
+  } catch { /* ignore */ }
+}
+function saveCommissions() {
+  try {
+    localStorage.setItem(COMM_KEY, JSON.stringify({ trade: state.commTrade, contract: state.commContract, rt: state.commRt }));
+  } catch { /* ignore */ }
+}
+function openTargetDialog() {
+  const modal = $("target-modal");
+  if (!modal) return;
+  modal.hidden = false;
+  $("target-px").value = String(state.targetPx || spotNow() || "");
+  const v = Number($("target-px").value);
+  const spot = spotNow();
+  $("target-pct").textContent = (spot > 0 && Number.isFinite(v)) ? `(${(((v - spot) / spot) * 100).toFixed(1)}%)` : "";
+  $("target-px").focus();
+  $("target-px").select();
+}
+function markCustom() {
+  if (state.template !== "custom") state.template = "custom";
+}
 const rate = () => (state.quote && Number(state.quote.rate)) || 0.041;
 const yieldQ = () => (state.quote && Number(state.quote.yield)) || 0;
 const styleOf = () => (state.quote && state.quote.style) || "american";
@@ -175,6 +226,9 @@ function scaledLegs(legs = openLegs()) {
     if (copy.kind === "stock" || copy.type === "S") return copy;
     const apply = state.ivScope === "average" || !state.ivScope || state.ivScope === copy.expiry;
     copy.iv = Math.max(0, (Number(l.iv) || 0) * (apply ? state.ivMult : 1));
+    // European BSM is a close, much cheaper stand-in while a control is mid-drag;
+    // the pointerup / change path rerenders with the American model.
+    if (state.liveFast) copy.style = "european";
     return copy;
   });
 }
@@ -195,15 +249,18 @@ function analytics() {
   const legs = scaledLegs();
   const spot = spotNow();
   const now = Date.now();
+  const tCop = state.dateMs || now;
   const summary = summarizePayoff(legs, { spot, r: rate(), q: yieldQ(), timeMs: now, ivShift: 0 });
-  const { p } = chanceOfProfit(legs, { spot, r: rate(), q: yieldQ(), timeMs: now, ivShift: 0 });
+  const { p } = chanceOfProfit(legs, { spot, r: rate(), q: yieldQ(), timeMs: tCop, ivShift: 0 });
   const greeks = netGreeks(legs, { spot, timeMs: now, r: rate(), q: yieldQ(), ivShift: 0 });
   const fee = feesFor(openLegs());
   if (fee) {
     if (Number.isFinite(summary.maxProfit)) summary.maxProfit -= fee;
     if (Number.isFinite(summary.maxLoss)) summary.maxLoss -= fee;
   }
-  return { ...summary, cop: p, greeks, fee, spot, now, legs };
+  const out = { ...summary, cop: p, greeks, fee, spot, now, legs };
+  state.lastAnalytics = out;
+  return out;
 }
 
 function avgIv() {
@@ -254,10 +311,15 @@ function hydrateEntries(entries) {
         kind: "stock", side: e.side, qty: e.qty || 100, chain: chainOf(), style: styleOf(), symbol: SYMBOL,
       }));
     }
-    return fillFromContract(makeLeg({
+    const leg = fillFromContract(makeLeg({
       type: e.type, side: e.side, qty: e.qty || 1, strike: e.strike, expiry: e.expiry,
       chain: chainOf(), style: styleOf(), symbol: SYMBOL,
     }));
+    if (Number.isFinite(Number(e.customPrice))) {
+      leg.customPrice = Number(e.customPrice);
+      leg.entry = Number(e.customPrice);
+    }
+    return leg;
   });
 }
 
@@ -359,7 +421,93 @@ function setTitle() {
   const tpl = templateBySlug(state.template);
   const name = (tpl && tpl.label) || "Custom";
   $("strategy-title").textContent = name;
-  document.title = `QQQ ${name} — Convexa`;
+  const opts = optionLegs(openLegs());
+  const strikes = [...new Set(opts.map((l) => Number(l.strike)).filter((n) => n > 0))].sort((a, b) => a - b);
+  const exp = lastExpiryIso();
+  const expBit = exp ? etDate(Date.parse(exp + "T12:00:00-05:00"), { month: "short", day: "numeric" }) + " " : "";
+  const strikeBit = strikes.length ? strikes.join("/") + " " : "";
+  document.title = (`QQQ ${expBit}${strikeBit}${name}`.replace(/\s+/g, " ").trim()) + " — Convexa";
+}
+
+const pendingFlags = Object.create(null);
+let rafId = 0;
+
+function scheduleRender(flags = { all: true }) {
+  Object.assign(pendingFlags, flags);
+  if (rafId) return;
+  rafId = requestAnimationFrame(() => {
+    rafId = 0;
+    const f = { ...pendingFlags };
+    for (const k of Object.keys(pendingFlags)) delete pendingFlags[k];
+    const t0 = performance.now();
+    commitRender(f);
+    const ms = performance.now() - t0;
+    window.__lastRenderMs = ms;
+    if (!window.__renderSamples) window.__renderSamples = [];
+    window.__renderSamples.push(ms);
+  });
+}
+
+function commitRender(f) {
+  if (!state.quote) return;
+  if (f.all) {
+    renderAll();
+    return;
+  }
+  const needA = f.stats || f.view;
+  const a = f.stats ? analytics() : (needA ? (state.lastAnalytics || analytics()) : null);
+  if (f.title) setTitle();
+  if (f.sliders && a) renderSliders(a, { keepInput: true });
+  if (f.stats && a) renderStats(a);
+  if (f.toggles) renderToggles();
+  if (f.view && a) {
+    if (state.view === "table") renderTable(a);
+    else renderGraph(a);
+  }
+  if (f.strikes && !state.chipDrag) renderStrikeStrip();
+  if (f.expiry) renderExpiryStrip();
+  if (f.url) pushUrl(true);
+  if (f.positions && $("positions-modal") && !$("positions-modal").hidden) renderPositions();
+}
+
+function interpY(pts, x) {
+  if (!pts || !pts.length) return 0;
+  if (x <= pts[0][0]) return pts[0][1];
+  const last = pts[pts.length - 1];
+  if (x >= last[0]) return last[1];
+  for (let i = 1; i < pts.length; i++) {
+    if (x <= pts[i][0]) {
+      const [x0, y0] = pts[i - 1];
+      const [x1, y1] = pts[i];
+      const t = (x - x0) / (x1 - x0 || 1);
+      return y0 + t * (y1 - y0);
+    }
+  }
+  return last[1];
+}
+
+function zeroCrossings(pts) {
+  const be = [];
+  for (let i = 1; i < pts.length; i++) {
+    const [x0, y0] = pts[i - 1];
+    const [x1, y1] = pts[i];
+    if (y0 === 0) {
+      if (!be.length || Math.abs(be[be.length - 1] - x0) > 1e-6) be.push(x0);
+    } else if (y0 * y1 < 0) {
+      be.push(x0 + (-y0 / (y1 - y0)) * (x1 - x0));
+    }
+  }
+  return be;
+}
+
+function chipInner(leg) {
+  const typ = leg.type === "P" || leg.type === "put" ? "put" : "call";
+  const qtyBit = Number(leg.qty) !== 1 ? `${leg.qty}× ` : "";
+  const tag = uniqueLegExpiries().length > 1
+    ? `<span class="tag">${etDate(Date.parse(leg.expiry + "T12:00:00-05:00"), { month: "short", day: "numeric" })}</span>`
+    : "";
+  const badge = Number.isFinite(Number(leg.customPrice)) ? `<span class="badge">@</span>` : "";
+  return `${qtyBit}${leg.strike} ${typ === "put" ? "P" : "C"}${badge}${tag}`;
 }
 
 /* ---------- render ---------- */
@@ -461,33 +609,36 @@ function renderExpiryStrip() {
 }
 
 async function onPickExpiry(iso) {
-  const legExps = uniqueLegExpiries();
-  let target = state.activeExpiry || legExps[0];
-  if (legExps.length > 1 && target && iso !== target) {
-    // If the clicked date is closer to the other slot, move that slot.
-    const other = legExps.find((e) => e !== target);
-    if (other && Math.abs(Date.parse(iso) - Date.parse(other)) < Math.abs(Date.parse(iso) - Date.parse(target))) {
-      target = other;
-    }
-  }
-  if (!target) target = iso;
   await ensureExpiries([iso]);
-  for (const l of state.legs) {
-    if (l.kind === "stock" || l.type === "S") continue;
-    if (l.expiry === target) {
+  const editId = state.expiryEditLegId;
+  if (editId) {
+    const leg = findLeg(editId);
+    if (leg && leg.kind !== "stock" && leg.type !== "S") {
+      leg.expiry = iso;
+      fillFromContract(leg);
+      markCustom();
+    }
+    state.expiryEditLegId = null;
+    const pop = $("leg-pop");
+    if (pop) pop.hidden = true;
+  } else {
+    for (const l of state.legs) {
+      if (l.kind === "stock" || l.type === "S") continue;
       l.expiry = iso;
       fillFromContract(l);
     }
   }
   state.activeExpiry = iso;
   state.month = iso.slice(0, 7);
+  rememberExpiry(iso);
+  // Date slider returns to Now after an expiry change.
+  state.dateMs = Date.now();
   const last = lastExpiryIso();
   if (last) {
-    state.dateMs = expiryCloseUtc(last);
     const sl = $("date-slider");
     const days = tradingDays(Date.now(), expiryCloseUtc(last));
     sl.max = String(Math.max(0, days.length - 1));
-    sl.value = sl.max;
+    sl.value = "0";
     sl.disabled = days.length < 2;
   }
   pushUrl();
@@ -574,46 +725,68 @@ function renderStrikeStrip() {
     chip.className = `leg-chip ${leg.side === "sell" ? "short" : "long"} ${typ}`;
     if (wideSpread(leg)) chip.classList.add("warn");
     if (far && leg.expiry === far) chip.classList.add("exp-b");
-    const tag = uniqueLegExpiries().length > 1
-      ? `<span class="tag">${etDate(Date.parse(leg.expiry + "T12:00:00-05:00"), { month: "short", day: "numeric" })}</span>`
-      : "";
-    const qtyBit = Number(leg.qty) !== 1 ? `${leg.qty}× ` : "";
-    chip.innerHTML = `${qtyBit}${leg.strike} ${typ === "put" ? "P" : "C"}${tag}`;
+    chip.innerHTML = chipInner(leg);
     chip.style.left = x + "px";
     chip.dataset.id = leg.id;
-    bindDrag(chip, leg, xOf, lo, hi, strikes.length ? strikes : [...byK.keys()].sort((a, b) => a - b));
+    bindDrag(chip, leg, { xOf, lo, hi, padX, w, strikes: strikes.length ? strikes : [...byK.keys()].sort((a, b) => a - b) });
     host.appendChild(chip);
   }
 }
 
-function bindDrag(chip, leg, xOf, lo, hi, strikes) {
+function bindDrag(chip, leg, { xOf, lo, hi, padX, w, strikes }) {
   const host = $("strike-strip");
-  const onMove = (ev) => {
+  const strikeOfX = (clientX) => {
     const rect = host.getBoundingClientRect();
-    const x = ev.clientX - rect.left;
-    const k = lo + (x / rect.width) * (hi - lo);
-    const snap = nearestStrike(strikes, k);
+    const x = clientX - rect.left;
+    const inner = Math.max(1, (w || rect.width) - 2 * (padX || 0));
+    const k = lo + ((x - (padX || 0)) / inner) * (hi - lo);
+    return nearestStrike(strikes, k);
+  };
+  const applySnap = (snap) => {
     chip.style.left = xOf(snap) + "px";
     chip.dataset.snap = String(snap);
+    if (Number(leg.strike) === snap) return;
+    leg.strike = snap;
+    fillFromContract(leg);
+    markCustom();
+    chip.innerHTML = chipInner(leg);
+    if (wideSpread(leg)) chip.classList.add("warn");
+    else chip.classList.remove("warn");
+    scheduleRender({ title: true, stats: true, view: true, sliders: true, positions: true });
+  };
+  let startX = 0;
+  let moved = false;
+  const onMove = (ev) => {
+    if (!moved && Math.abs(ev.clientX - startX) < 5) return;
+    moved = true;
+    applySnap(strikeOfX(ev.clientX));
   };
   const onUp = (ev) => {
     window.removeEventListener("pointermove", onMove);
     window.removeEventListener("pointerup", onUp);
     chip.classList.remove("is-drag");
-    const snap = Number(chip.dataset.snap);
-    if (Number.isFinite(snap) && snap !== Number(leg.strike)) {
-      leg.strike = snap;
-      fillFromContract(leg);
-      pushUrl();
-      renderAll();
+    state.chipDrag = false;
+    state.liveFast = false;
+    if (!moved) {
+      openLegPop(ev, leg.id);
+      return;
     }
+    const snap = Number(chip.dataset.snap);
+    if (Number.isFinite(snap)) applySnap(snap);
+    pushUrl();
+    scheduleRender({ all: true });
   };
   chip.addEventListener("pointerdown", (ev) => {
     ev.preventDefault();
+    ev.stopPropagation();
+    startX = ev.clientX;
+    moved = false;
     chip.classList.add("is-drag");
+    state.chipDrag = true;
+    state.liveFast = true;
+    try { chip.setPointerCapture(ev.pointerId); } catch { /* ignore */ }
     window.addEventListener("pointermove", onMove);
     window.addEventListener("pointerup", onUp);
-    onMove(ev);
   });
 }
 
@@ -622,10 +795,10 @@ function renderStats(a) {
   const pages = [
     [
       { k: a.premium >= 0 ? "Debit" : "Credit", v: formatMoney(Math.abs(a.premium), { signed: false }), cls: "" },
-      { k: "Max profit", v: formatMoney(a.maxProfit, { signed: true }), cls: Number.isFinite(a.maxProfit) && a.maxProfit > 0 ? "up" : "" },
       { k: "Max loss", v: formatMoney(a.maxLoss, { signed: true }), cls: !Number.isFinite(a.maxLoss) || a.maxLoss < 0 ? "dn" : "" },
-      { k: "Break evens", v: (a.breakevens || []).length ? a.breakevens.map((x) => fmtPx(x, 2)).join(" · ") : "—", cls: (a.breakevens || []).length > 1 ? "tight" : "" },
+      { k: "Max profit", v: formatMoney(a.maxProfit, { signed: true }), cls: Number.isFinite(a.maxProfit) && a.maxProfit > 0 ? "up" : "" },
       { k: "Chance of profit", v: Number.isFinite(a.cop) ? `${(a.cop * 100).toFixed(1)}%` : "—", cls: "" },
+      { k: "Break evens", v: (a.breakevens || []).length ? a.breakevens.map((x) => fmtPx(x, 2)).join(" · ") : "—", cls: (a.breakevens || []).length > 1 ? "tight" : "" },
     ],
     [
       { k: "Delta", v: fmtG(a.greeks && a.greeks.delta, 2), cls: clsG(a.greeks && a.greeks.delta) },
@@ -672,14 +845,47 @@ function renderGraph(a) {
   const last = lastExpiryIso();
   const tExp = last ? expiryCloseUtc(last) : now;
   const tSel = selectedTime();
-  const xs = priceGrid(spot, state.range, 81);
+  const legs = a.legs || scaledLegs();
+  const nPts = state.liveFast ? 25 : 81;
+  const cacheKey = [
+    nPts, state.range, state.ivMult, state.ivScope, state.mode,
+    openLegs().map((l) => [l.id, l.strike, l.qty, l.side, l.type, l.expiry, l.entry, l.iv, l.excluded, l.customPrice].join(":")).join("|"),
+  ].join("/");
+  if (!state.curveCache || state.curveCache.key !== cacheKey) state.curveCache = { key: cacheKey };
+  const xs = state.curveCache.xs && state.curveCache.xs.length === nPts
+    ? state.curveCache.xs
+    : (state.curveCache.xs = priceGrid(spot, state.range, nPts));
   const series = [];
-  series.push({ id: "expiry", label: "At expiration", color: "#d4af37", pts: xs.map((x) => [x, pnlAt(x, tExp)]) });
-  if (Math.abs(tSel - tExp) > 36e5) {
-    series.push({ id: "selected", label: etDate(tSel, { month: "short", day: "numeric" }), color: "#8b7cc8", pts: xs.map((x) => [x, pnlAt(x, tSel)]) });
-  }
-  if (Math.abs(tSel - now) > 36e5 && Math.abs(tExp - now) > 36e5) {
-    series.push({ id: "today", label: "Now", color: "#f4f6fb", pts: xs.map((x) => [x, pnlAt(x, now)]) });
+  const daysLeft = (t) => Math.max(0, Math.round((tExp - t) / 86400000));
+  const offExpiry = Math.abs(tSel - tExp) > 36e5;
+  const expiryPts = state.curveCache.expiryPts || xs.map((x) => [x, pnlAt(x, tExp, legs)]);
+  state.curveCache.expiryPts = expiryPts;
+  series.push({
+    id: "expiry",
+    label: `Expiration (${daysLeft(now)}d)`,
+    color: "#d4af37",
+    dash: offExpiry ? "3 4" : null,
+    width: offExpiry ? 1.6 : 2.2,
+    pts: expiryPts,
+  });
+  if (offExpiry) {
+    const tMid = tSel + (tExp - tSel) / 2;
+    series.push({
+      id: "mid",
+      label: `${etDate(tMid, { weekday: "short", month: "short", day: "numeric" })} (${daysLeft(tMid)}d)`,
+      color: "#c4b5fd",
+      dash: "6 4",
+      width: 1.4,
+      pts: xs.map((x) => [x, pnlAt(x, tMid, legs)]),
+    });
+    series.push({
+      id: "selected",
+      label: `${etDate(tSel, { weekday: "short", month: "short", day: "numeric" })} (${daysLeft(tSel)}d)`,
+      color: "#f4f6fb",
+      dash: null,
+      width: 2.0,
+      pts: xs.map((x) => [x, pnlAt(x, tSel, legs)]),
+    });
   }
   const focus = series.find((s) => s.id === "selected") || series[0];
   const ys = series.flatMap((s) => s.pts.map((p) => p[1])).filter(Number.isFinite);
@@ -689,6 +895,7 @@ function renderGraph(a) {
   const padY = (yMax - yMin) * 0.12 || 50;
   yMin -= padY; yMax += padY;
   const xMin = xs[0], xMax = xs[xs.length - 1];
+  state.graphScale = { range: state.range, yMin, yMax, xMin, xMax };
   const X = (x) => pad.l + ((x - xMin) / (xMax - xMin)) * (W - pad.l - pad.r);
   const Y = (y) => pad.t + ((yMax - y) / (yMax - yMin)) * (H - pad.t - pad.b);
   const pathOf = (pts) => pts.map((p, i) => `${i ? "L" : "M"}${X(p[0]).toFixed(2)},${Y(p[1]).toFixed(2)}`).join(" ");
@@ -711,9 +918,47 @@ function renderGraph(a) {
   }).join(" ");
 
   const yTicks = prettyTicks(yMin, yMax, 5);
-  const xTicks = prettyTicks(xMin, xMax, 6);
-  const beLines = (a.breakevens || []).filter((b) => b >= xMin && b <= xMax);
+  const xTicks = prettyTicks(xMin, xMax, 21);
+  const beLines = zeroCrossings(focus.pts).filter((b) => b >= xMin && b <= xMax);
 
+  const canPatch = false;
+  if (canPatch) {
+    const areaEl = svg.querySelector("[data-area]");
+    if (areaEl) areaEl.setAttribute("d", area);
+    for (const s of series) {
+      let el = svg.querySelector(`[data-series="${s.id}"]`);
+      if (!el) {
+        el = document.createElementNS("http://www.w3.org/2000/svg", "path");
+        el.setAttribute("data-series", s.id);
+        el.setAttribute("fill", "none");
+        el.setAttribute("stroke", s.color);
+        el.setAttribute("stroke-width", String(s.width || 1.6));
+        if (s.dash) el.setAttribute("stroke-dasharray", s.dash);
+        const legend = svg.querySelector("[data-legend]");
+        svg.insertBefore(el, legend || null);
+      }
+      el.setAttribute("d", pathOf(s.pts));
+      if (s.dash) el.setAttribute("stroke-dasharray", s.dash);
+      else el.removeAttribute("stroke-dasharray");
+    }
+    svg.querySelectorAll("[data-series]").forEach((el) => {
+      if (!series.some((s) => s.id === el.getAttribute("data-series"))) el.remove();
+    });
+    const beG = svg.querySelector("[data-bes]");
+    if (beG) {
+      beG.innerHTML = beLines.map((b) => `<line x1="${X(b)}" x2="${X(b)}" y1="${pad.t}" y2="${H - pad.b}" stroke="#f4f6fb" stroke-dasharray="2 3" opacity="0.6"/><text x="${X(b)}" y="${pad.t + 10}" fill="#f4f6fb" font-size="9" text-anchor="middle">${fmtPx(b, 1)}</text>`).join("");
+    }
+    const legend = svg.querySelector("[data-legend]");
+    if (legend) {
+      legend.innerHTML = series.map((s, i) => `<g transform="translate(${pad.l + i * 130}, 14)"><line x1="0" x2="16" y1="-3" y2="-3" stroke="${s.color}" stroke-width="2"${s.dash ? ` stroke-dasharray="${s.dash}"` : ""}/><text x="20" y="0">${s.label}</text></g>`).join("");
+    }
+    const tgt = svg.querySelector("[data-target]");
+    if (tgt) {
+      tgt.innerHTML = (Number(state.targetPx) > 0 && state.targetPx >= xMin && state.targetPx <= xMax)
+        ? `<line x1="${X(state.targetPx)}" x2="${X(state.targetPx)}" y1="${pad.t}" y2="${H - pad.b}" stroke="#f5a623" stroke-width="1.6"/><text x="${X(state.targetPx)}" y="${pad.t + 22}" fill="#f5a623" font-size="9" text-anchor="middle">Target ${fmtPx(state.targetPx, 2)}</text>`
+        : "";
+    }
+  } else {
   svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
   svg.innerHTML = `
     <defs>
@@ -727,33 +972,38 @@ function renderGraph(a) {
     <rect x="0" y="0" width="${W}" height="${H}" fill="#0a101c"/>
     ${yTicks.map((v) => `<line x1="${pad.l}" x2="${W - pad.r}" y1="${Y(v)}" y2="${Y(v)}" stroke="#1a2438" /><text x="${pad.l - 6}" y="${Y(v) + 3}" fill="#8b96ad" font-size="10" text-anchor="end">${axisMoney(v)}</text>`).join("")}
     ${xTicks.map((v) => `<text x="${X(v)}" y="${H - 8}" fill="#8b96ad" font-size="10" text-anchor="middle">${fmtPx(v, 0)}</text>`).join("")}
-    <path d="${area}" fill="url(#pnlFill)" />
-    <path d="${bell}" fill="none" stroke="rgba(212,175,55,0.35)" stroke-width="1.2"/>
-    <line x1="${pad.l}" x2="${W - pad.r}" y1="${zeroY}" y2="${zeroY}" stroke="#8b96ad" stroke-width="1"/>
-    <line x1="${X(spot)}" x2="${X(spot)}" y1="${pad.t}" y2="${H - pad.b}" stroke="#d4af37" stroke-dasharray="4 3"/>
-    ${beLines.map((b) => `<line x1="${X(b)}" x2="${X(b)}" y1="${pad.t}" y2="${H - pad.b}" stroke="#f4f6fb" stroke-dasharray="2 3" opacity="0.6"/><text x="${X(b)}" y="${pad.t + 10}" fill="#f4f6fb" font-size="9" text-anchor="middle">${fmtPx(b, 1)}</text>`).join("")}
-    ${series.map((s) => `<path d="${pathOf(s.pts)}" fill="none" stroke="${s.color}" stroke-width="${s.id === "expiry" ? 2.2 : 1.6}"/>`).join("")}
-    <g font-size="11" fill="#8b96ad">
-      ${series.map((s, i) => `<g transform="translate(${pad.l + i * 130}, 14)"><line x1="0" x2="16" y1="-3" y2="-3" stroke="${s.color}" stroke-width="2"/><text x="20" y="0">${s.label}</text></g>`).join("")}
+    <path data-area="1" d="${area}" fill="url(#pnlFill)" />
+    <path data-bell="1" d="${bell}" fill="none" stroke="rgba(212,175,55,0.35)" stroke-width="1.2"/>
+    <line data-zero="1" x1="${pad.l}" x2="${W - pad.r}" y1="${zeroY}" y2="${zeroY}" stroke="#8b96ad" stroke-width="1"/>
+    <line data-spot="1" x1="${X(spot)}" x2="${X(spot)}" y1="${pad.t}" y2="${H - pad.b}" stroke="#d4af37" stroke-dasharray="4 3"/>
+    <g data-target="1">${(Number(state.targetPx) > 0 && state.targetPx >= xMin && state.targetPx <= xMax) ? `<line x1="${X(state.targetPx)}" x2="${X(state.targetPx)}" y1="${pad.t}" y2="${H - pad.b}" stroke="#f5a623" stroke-width="1.6"/><text x="${X(state.targetPx)}" y="${pad.t + 22}" fill="#f5a623" font-size="9" text-anchor="middle">Target ${fmtPx(state.targetPx, 2)}</text>` : ""}</g>
+    <g data-bes="1">${beLines.map((b) => `<line x1="${X(b)}" x2="${X(b)}" y1="${pad.t}" y2="${H - pad.b}" stroke="#f4f6fb" stroke-dasharray="2 3" opacity="0.6"/><text x="${X(b)}" y="${pad.t + 10}" fill="#f4f6fb" font-size="9" text-anchor="middle">${fmtPx(b, 1)}</text>`).join("")}</g>
+    ${series.map((s) => `<path data-series="${s.id}" d="${pathOf(s.pts)}" fill="none" stroke="${s.color}" stroke-width="${s.width || 1.6}"${s.dash ? ` stroke-dasharray="${s.dash}"` : ""}/>`).join("")}
+    <g data-legend="1" font-size="11" fill="#8b96ad">
+      ${series.map((s, i) => `<g transform="translate(${pad.l + i * 130}, 14)"><line x1="0" x2="16" y1="-3" y2="-3" stroke="${s.color}" stroke-width="2"${s.dash ? ` stroke-dasharray="${s.dash}"` : ""}/><text x="20" y="0">${s.label}</text></g>`).join("")}
+      <g transform="translate(${pad.l + series.length * 130}, 14)"><polygon points="0,-6 8,2 0,2" fill="rgba(212,175,55,0.55)"/><text x="14" y="0">Probability</text></g>
+      ${Number(state.targetPx) > 0 ? `<g transform="translate(${pad.l + (series.length + 1) * 130}, 14)"><line x1="0" x2="16" y1="-3" y2="-3" stroke="#f5a623" stroke-width="2"/><text x="20" y="0">Target ${fmtPx(state.targetPx, 2)}</text></g>` : ""}
     </g>
     <line id="hover-x" x1="0" x2="0" y1="${pad.t}" y2="${H - pad.b}" stroke="#ffc34a" stroke-dasharray="3 3" visibility="hidden"/>
     <circle id="hover-dot" r="4" fill="#ffc34a" visibility="hidden"/>
   `;
+  }
   const tip = $("graph-hover");
-  const onMove = (ev) => {
+  const focusPts = focus.pts;
+  const applyHover = (ev) => {
     const r = svg.getBoundingClientRect();
     const px = (ev.clientX - r.left) * (W / r.width);
-    const py = (ev.clientY - r.top) * (H / r.height);
     const x = xMin + ((px - pad.l) / (W - pad.l - pad.r)) * (xMax - xMin);
     if (x < xMin || x > xMax) return;
-    const y = pnlAt(x, tSel);
+    const y = interpY(focusPts, x);
     const hx = X(x), hy = Y(y);
     const hxline = svg.querySelector("#hover-x");
     const dot = svg.querySelector("#hover-dot");
+    if (!hxline || !dot) return;
     hxline.setAttribute("x1", hx); hxline.setAttribute("x2", hx); hxline.setAttribute("visibility", "visible");
     dot.setAttribute("cx", hx); dot.setAttribute("cy", hy); dot.setAttribute("visibility", "visible");
     const pct = ((x - spot) / spot) * 100;
-    const z = (Math.log(x) - mu) / sd;
+    const z = (Math.log(Math.max(x, 1e-8)) - mu) / (sd || 1);
     const below = normCdf(z) * 100;
     tip.hidden = false;
     tip.style.left = Math.min(r.width - 160, Math.max(8, (hx / W) * r.width + 10)) + "px";
@@ -766,7 +1016,18 @@ function renderGraph(a) {
     pill.textContent = `${below.toFixed(0)}% below  ·  ${(100 - below).toFixed(0)}% above`;
     state.hoverPx = x;
   };
+  let hoverRaf = 0;
+  let hoverEv = null;
+  const onMove = (ev) => {
+    hoverEv = ev;
+    if (hoverRaf) return;
+    hoverRaf = requestAnimationFrame(() => {
+      hoverRaf = 0;
+      if (hoverEv) applyHover(hoverEv);
+    });
+  };
   const onLeave = () => {
+    hoverEv = null;
     tip.hidden = true;
     const pill = wrap.querySelector(".prob-pill");
     if (pill) pill.hidden = true;
@@ -777,6 +1038,14 @@ function renderGraph(a) {
   };
   svg.onmousemove = onMove;
   svg.onmouseleave = onLeave;
+  let clickAt = null;
+  svg.onpointerdown = (ev) => { clickAt = { x: ev.clientX, y: ev.clientY }; };
+  svg.onpointerup = (ev) => {
+    if (!clickAt) return;
+    const dist = Math.hypot(ev.clientX - clickAt.x, ev.clientY - clickAt.y);
+    clickAt = null;
+    if (dist < 5) openTargetDialog();
+  };
 }
 
 function prettyTicks(min, max, n) {
@@ -808,7 +1077,7 @@ function renderTable(a) {
   // Keep the table readable: at most ~10 date columns, always include now + expiry.
   const cols = thinDates(dates, 10);
   const rows = [];
-  const n = 25;
+  const n = 21;
   const lo = spot * (1 - state.range);
   const hi = spot * (1 + state.range);
   for (let i = 0; i < n; i++) {
@@ -816,16 +1085,22 @@ function renderTable(a) {
     rows.push(px);
   }
   const nearSpot = rows.reduce((b, x) => Math.abs(x - spot) < Math.abs(b - spot) ? x : b, rows[0]);
-  const vals = rows.map((px) => cols.map((t) => pnlAt(px, t)));
+  const focusCol = cols.reduce((b, tm) => Math.abs(tm - (state.dateMs || end)) < Math.abs(b - (state.dateMs || end)) ? tm : b, cols[0]);
+  const legs = a.legs || scaledLegs();
+  const vals = rows.map((px) => cols.map((tm) => pnlAt(px, tm, legs)));
   const flat = vals.flat().filter(Number.isFinite);
   const maxAbs = Math.max(1, ...flat.map((v) => Math.abs(v)));
-  const head = cols.map((t) => `<th data-c="${t}">${etDate(t, { month: "short", day: "numeric" })}</th>`).join("");
+  const head = cols.map((tm) => `<th data-c="${tm}" class="${tm === focusCol ? "date-focus" : ""}">${etDate(tm, { month: "short", day: "numeric" })}</th>`).join("");
+  const targetRow = Number(state.targetPx) > 0
+    ? rows.reduce((b, x) => Math.abs(x - state.targetPx) < Math.abs(b - state.targetPx) ? x : b, rows[0])
+    : null;
   const body = rows.map((px, i) => {
     const pct = ((px - spot) / spot) * 100;
-    const spotCls = px === nearSpot ? " spot-row" : "";
+    const spotCls = (px === nearSpot ? " spot-row" : "") + (targetRow != null && px === targetRow ? " target-row" : "");
     const cells = vals[i].map((v, j) => {
       const bg = heat(v, maxAbs);
-      const cls = v > 0 ? "up" : v < 0 ? "dn" : "";
+      const focus = cols[j] === focusCol ? " date-focus" : "";
+      const cls = (v > 0 ? "up" : v < 0 ? "dn" : "") + focus;
       return `<td class="${cls}" data-r="${i}" data-c="${cols[j]}" style="background:${bg}">${displayNumber(v, a, px, cols[j])}</td>`;
     }).join("");
     return `<tr class="${spotCls}" data-r="${i}"><th class="sticky-col">${fmtPx(px, 2)} <span style="color:#8b96ad">${pct >= 0 ? "+" : ""}${pct.toFixed(1)}%</span></th>${cells}</tr>`;
@@ -858,29 +1133,38 @@ function heat(v, maxAbs) {
   return `rgba(231, 76, 60, ${0.08 + 0.45 * -t})`;
 }
 
-function renderSliders(a) {
+function renderSliders(a, { keepInput = false } = {}) {
   const last = lastExpiryIso();
   const end = last ? expiryCloseUtc(last) : Date.now();
   const days = tradingDays(Date.now(), end);
   const sl = $("date-slider");
+  const active = keepInput ? document.activeElement : null;
   sl.min = "0";
   sl.max = String(Math.max(0, days.length - 1));
   sl.disabled = days.length < 2;
-  let idx = days.findIndex((t) => t >= (state.dateMs || end) - 36e5);
-  if (idx < 0) idx = days.length - 1;
-  sl.value = String(idx);
-  const t = days[idx] || end;
-  state.dateMs = t;
-  $("date-label").textContent = etDate(t, { weekday: "short", month: "short", day: "numeric", year: "numeric" });
-  const left = Math.max(0, Math.round((end - Date.now()) / 86400000));
-  $("date-right").textContent = isAtExpiry(t) ? "At expiration" : `${Math.max(0, Math.round((end - t) / 86400000))} days before expiration`;
-  $("range-label").textContent = `±${Math.round(state.range * 100)}%`;
-  $("range-slider").value = String(Math.round(state.range * 100));
+  if (active !== sl) {
+    let idx = days.findIndex((tm) => tm >= (state.dateMs || end) - 36e5);
+    if (idx < 0) idx = days.length - 1;
+    sl.value = String(idx);
+    state.dateMs = days[idx] || end;
+  }
+  const t = state.dateMs || end;
+  const daysFromNow = Math.max(0, Math.round((t - Date.now()) / 86400000));
+  const daysRem = Math.max(0, Math.round((end - t) / 86400000));
+  const nearNow = Math.abs(t - Date.now()) < 36e5 * 18;
+  $("date-label").textContent = nearNow && !isAtExpiry(t)
+    ? "Now"
+    : `${dateShortLabel(t)} (${daysFromNow}d)`;
+  $("date-right").textContent = isAtExpiry(t) ? "At expiration" : `${daysRem}d remaining`;
+  const rangePct = state.range * 100;
+  $("range-label").textContent = `±${Number.isInteger(Math.round(rangePct * 10) / 10) && Math.abs(rangePct - Math.round(rangePct)) < 0.05 ? String(Math.round(rangePct)) : rangePct.toFixed(1)}%`;
+  if (active !== $("range-slider")) $("range-slider").value = String(Math.round(rangePct * 10) / 10);
+  if ($("range-reset")) $("range-reset").hidden = Math.abs(state.range - DEFAULT_RANGE) < 0.0005;
 
   const iv = avgIv();
   const base = iv / (state.ivMult || 1);
-  $("iv-label").textContent = `${((iv || 0) * 100).toFixed(1)}%   ×${state.ivMult.toFixed(2).replace(/\.00$/, "").replace(/(\.\d)0$/, "$1")}`;
-  $("iv-slider").value = String(Math.round(state.ivMult * 100));
+  $("iv-label").textContent = `${((iv || 0) * 100).toFixed(1)}%`;
+  if (active !== $("iv-slider")) $("iv-slider").value = String(Math.round(state.ivMult * 100));
   $("iv-reset").hidden = Math.abs(state.ivMult - 1) < 0.005;
   const exps = uniqueLegExpiries();
   $("iv-dd").hidden = exps.length < 2;
@@ -911,10 +1195,10 @@ function renderAll() {
   renderQuote();
   renderBuildMenu();
   renderExpiryStrip();
-  renderStrikeStrip();
+  if (!state.chipDrag) renderStrikeStrip();
   const a = analytics();
   renderStats(a);
-  renderSliders(a);
+  renderSliders(a, { keepInput: Boolean(state.liveFast) });
   renderToggles();
   if (state.view === "table") renderTable(a);
   else renderGraph(a);
@@ -925,7 +1209,10 @@ function renderAll() {
 
 async function applyTemplate(slug, expiry) {
   const id = slug || "iron-condor";
-  let exp = expiry || state.activeExpiry || expiryNearDays(uniqueExpiries(chainOf()), 30);
+  const savedExp = lastUsedExpiry();
+  const haveExps = uniqueExpiries(chainOf());
+  const savedOk = savedExp && haveExps.includes(savedExp);
+  let exp = expiry || state.activeExpiry || (savedOk ? savedExp : null) || expiryNearDays(haveExps, 30);
   if (exp) await ensureExpiries([exp]);
   // Calendars need a second expiry — fetch a later one too.
   if (TWO_EXPIRY.has(id)) {
@@ -947,7 +1234,10 @@ async function applyTemplate(slug, expiry) {
   state.legs = (legs || []).map((l) => fillFromContract(l));
   state.closed = [];
   state.activeExpiry = exp;
-  if (exp) state.month = exp.slice(0, 7);
+  if (exp) {
+    state.month = exp.slice(0, 7);
+    rememberExpiry(exp);
+  }
   const last = lastExpiryIso();
   state.dateMs = last ? expiryCloseUtc(last) : Date.now();
   state.ivMult = 1;
@@ -1064,6 +1354,7 @@ function openLegPop(ev, id) {
     ${typ === "stock" ? "" : `<div class="seg"><button type="button" class="seg-btn ${typ === "call" ? "is-on" : ""}" id="pop-call">Call</button><button type="button" class="seg-btn ${typ === "put" ? "is-on" : ""}" id="pop-put">Put</button></div>`}
     <div class="pop-acts">
       <button type="button" class="btn-ghost" id="pop-exclude">${leg.excluded ? "Include" : "Exclude"}</button>
+      <button type="button" class="btn-ghost" id="pop-exp">Change expiration</button>
       <button type="button" class="btn-ghost" id="pop-close-leg">Close</button>
       <button type="button" class="btn-ghost" id="pop-remove">Remove</button>
     </div>
@@ -1071,18 +1362,44 @@ function openLegPop(ev, id) {
   const r = ev.target.getBoundingClientRect();
   pop.style.left = Math.min(window.innerWidth - 300, Math.max(8, r.left)) + "px";
   pop.style.top = Math.min(window.innerHeight - 40, r.bottom + 6) + "px";
+  const livePop = () => {
+    $("qty-val").textContent = String(leg.qty);
+    scheduleRender({ title: true, stats: true, view: true, sliders: true, strikes: true, url: true, positions: true });
+  };
   const done = () => { pop.hidden = true; pushUrl(); renderAll(); };
   $("pop-close").onclick = () => { pop.hidden = true; };
-  $("qty-dec").onclick = () => { leg.qty = Math.max(leg.kind === "stock" ? 1 : 1, (Number(leg.qty) || 1) - (leg.kind === "stock" ? 100 : 1)); $("qty-val").textContent = leg.qty; };
-  $("qty-inc").onclick = () => { leg.qty = (Number(leg.qty) || 1) + (leg.kind === "stock" ? 100 : 1); $("qty-val").textContent = leg.qty; };
-  $("pop-px").onchange = () => {
+  $("qty-dec").onclick = () => {
+    const step = leg.kind === "stock" ? 100 : 1;
+    leg.qty = Math.max(step, (Number(leg.qty) || step) - step);
+    livePop();
+  };
+  $("qty-inc").onclick = () => {
+    const step = leg.kind === "stock" ? 100 : 1;
+    leg.qty = (Number(leg.qty) || step) + step;
+    livePop();
+  };
+  const onPx = () => {
     const v = Number($("pop-px").value);
     leg.customPrice = Number.isFinite(v) ? v : null;
     if (Number.isFinite(v)) leg.entry = v;
+    livePop();
   };
+  $("pop-px").oninput = onPx;
+  $("pop-px").onchange = onPx;
   if ($("pop-call")) $("pop-call").onclick = () => { leg.type = "C"; fillFromContract(leg); openLegPop(ev, id); };
   if ($("pop-put")) $("pop-put").onclick = () => { leg.type = "P"; fillFromContract(leg); openLegPop(ev, id); };
   $("pop-exclude").onclick = () => { leg.excluded = !leg.excluded; done(); };
+  $("pop-exp").onclick = () => {
+    state.expiryEditLegId = leg.id;
+    pop.hidden = true;
+    if (leg.expiry) {
+      state.activeExpiry = leg.expiry;
+      state.month = leg.expiry.slice(0, 7);
+    }
+    renderExpiryStrip();
+    const strip = $("expiry-strip");
+    if (strip) strip.scrollIntoView({ behavior: "smooth", block: "center" });
+  };
   $("pop-close-leg").onclick = () => { leg.closed = true; state.closed.push(leg); done(); };
   $("pop-remove").onclick = () => { state.legs = state.legs.filter((x) => x.id !== leg.id); done(); };
 }
@@ -1167,17 +1484,68 @@ function closeMenus(ev) {
   if (!t || !t.closest("#leg-pop") && !t.closest("[data-gear]")) $("leg-pop").hidden = true;
 }
 
+function bindPan(el) {
+  if (!el || el.dataset.panBound) return;
+  el.dataset.panBound = "1";
+  let x0 = 0, sl0 = 0, down = false;
+  el.addEventListener("pointerdown", (ev) => {
+    if (ev.target.closest("button")) return;
+    down = true;
+    x0 = ev.clientX;
+    sl0 = el.scrollLeft;
+    el.style.cursor = "grabbing";
+  });
+  window.addEventListener("pointermove", (ev) => {
+    if (!down) return;
+    el.scrollLeft = sl0 - (ev.clientX - x0);
+  });
+  window.addEventListener("pointerup", () => {
+    if (!down) return;
+    down = false;
+    el.style.cursor = "";
+  });
+}
+
 function bind() {
+  loadCommissions();
+  if ($("comm-trade")) $("comm-trade").value = String(state.commTrade || 0);
+  if ($("comm-contract")) $("comm-contract").value = String(state.commContract || 0);
+  if ($("comm-rt")) $("comm-rt").checked = Boolean(state.commRt);
+  bindPan($("expiry-strip"));
   $("notice-close").onclick = () => {
     $("notice-bar").hidden = true;
     try { localStorage.setItem(NOTICE_KEY, "1"); } catch { /* ignore */ }
   };
-  $("build-btn").onclick = (ev) => {
-    ev.stopPropagation();
-    const open = $("build-menu").hidden;
-    $("build-menu").hidden = !open;
-    $("build-btn").setAttribute("aria-expanded", open ? "true" : "false");
-  };
+  {
+    let leaveTimer = 0;
+    const fine = () => window.matchMedia("(hover: hover) and (pointer: fine)").matches;
+    $("build-btn").onclick = (ev) => {
+      ev.stopPropagation();
+      // On a precise pointer the menu already opens on hover; a click
+      // should not immediately toggle it shut.
+      if (fine()) {
+        $("build-menu").hidden = false;
+        $("build-btn").setAttribute("aria-expanded", "true");
+        return;
+      }
+      const willOpen = $("build-menu").hidden;
+      $("build-menu").hidden = !willOpen;
+      $("build-btn").setAttribute("aria-expanded", willOpen ? "true" : "false");
+    };
+    $("build-wrap").addEventListener("mouseenter", () => {
+      if (!fine()) return;
+      clearTimeout(leaveTimer);
+      $("build-menu").hidden = false;
+      $("build-btn").setAttribute("aria-expanded", "true");
+    });
+    $("build-wrap").addEventListener("mouseleave", () => {
+      if (!fine()) return;
+      leaveTimer = setTimeout(() => {
+        $("build-menu").hidden = true;
+        $("build-btn").setAttribute("aria-expanded", "false");
+      }, 160);
+    });
+  }
   $("btn-add").onclick = (ev) => {
     ev.stopPropagation();
     const menu = $("add-menu");
@@ -1215,9 +1583,18 @@ function bind() {
   $("pos-reset-px").onclick = resetCustomPrices;
   $("px-mid").onclick = () => { state.pricingMode = "mid"; renderPositions(); renderAll(); };
   $("px-ba").onclick = () => { state.pricingMode = "ba"; renderPositions(); renderAll(); };
-  $("comm-trade").onchange = () => { state.commTrade = Number($("comm-trade").value) || 0; renderAll(); };
-  $("comm-contract").onchange = () => { state.commContract = Number($("comm-contract").value) || 0; renderAll(); };
-  $("comm-rt").onchange = () => { state.commRt = $("comm-rt").checked; renderAll(); };
+  const onComm = () => {
+    state.commTrade = Number($("comm-trade").value) || 0;
+    state.commContract = Number($("comm-contract").value) || 0;
+    state.commRt = $("comm-rt").checked;
+    saveCommissions();
+    scheduleRender({ stats: true, view: true, positions: true });
+  };
+  $("comm-trade").oninput = onComm;
+  $("comm-contract").oninput = onComm;
+  $("comm-trade").onchange = onComm;
+  $("comm-contract").onchange = onComm;
+  $("comm-rt").onchange = onComm;
   $("btn-save").onclick = saveTrade;
   $("btn-history").onclick = openHistory;
   $("hist-close").onclick = () => { $("hist-modal").hidden = true; };
@@ -1228,23 +1605,57 @@ function bind() {
   });
   $("stats-prev").onclick = () => { state.statsPage = (state.statsPage + 1) % 2; renderStats(analytics()); };
   $("stats-next").onclick = () => { state.statsPage = (state.statsPage + 1) % 2; renderStats(analytics()); };
+  const endLive = () => {
+    state.liveFast = false;
+    scheduleRender({ sliders: true, view: true, stats: true, strikes: true });
+  };
   $("date-slider").oninput = () => {
+    state.liveFast = true;
     const last = lastExpiryIso();
     const days = tradingDays(Date.now(), last ? expiryCloseUtc(last) : Date.now());
     const idx = Number($("date-slider").value);
     state.dateMs = days[idx] || state.dateMs;
-    renderAll();
+    // Graph + table update live; strip max profit / BEs stay expiry-based. COP refreshes on release.
+    scheduleRender({ sliders: true, view: true });
   };
   $("range-slider").oninput = () => {
-    state.range = clamp(Number($("range-slider").value) / 100, 0.05, 0.8);
-    renderAll();
+    state.liveFast = true;
+    state.range = clamp(Number($("range-slider").value) / 100, 0.01, 0.84);
+    scheduleRender({ sliders: true, view: true, strikes: true });
   };
-  $("range-reset").onclick = () => { state.range = DEFAULT_RANGE; renderAll(); };
+  $("range-reset").onclick = () => { state.range = DEFAULT_RANGE; state.liveFast = false; scheduleRender({ sliders: true, view: true, strikes: true }); };
+  const syncTargetPct = () => {
+    const v = Number($("target-px").value);
+    const spot = spotNow();
+    $("target-pct").textContent = (spot > 0 && Number.isFinite(v))
+      ? `(${(((v - spot) / spot) * 100).toFixed(1)}%)`
+      : "";
+  };
+  $("target-btn").onclick = openTargetDialog;
+  $("target-close").onclick = () => { $("target-modal").hidden = true; };
+  $("target-modal").addEventListener("click", (e) => { if (e.target.id === "target-modal") $("target-modal").hidden = true; });
+  $("target-px").addEventListener("input", syncTargetPct);
+  $("target-set").onclick = () => {
+    const v = Number($("target-px").value);
+    state.targetPx = Number.isFinite(v) && v > 0 ? v : null;
+    $("target-modal").hidden = true;
+    scheduleRender({ view: true });
+  };
+  $("target-clear").onclick = () => {
+    state.targetPx = null;
+    $("target-modal").hidden = true;
+    scheduleRender({ view: true });
+  };
   $("iv-slider").oninput = () => {
-    state.ivMult = clamp(Number($("iv-slider").value) / 100, 1, 3);
-    renderAll();
+    state.liveFast = true;
+    state.ivMult = clamp(Number($("iv-slider").value) / 100, 0.1, 3);
+    scheduleRender({ sliders: true, stats: true, view: true, positions: true });
   };
-  $("iv-reset").onclick = () => { state.ivMult = 1; renderAll(); };
+  $("iv-reset").onclick = () => { state.ivMult = 1; state.liveFast = false; scheduleRender({ sliders: true, stats: true, view: true, positions: true }); };
+  for (const id of ["date-slider", "range-slider", "iv-slider"]) {
+    $(id).addEventListener("change", endLive);
+    $(id).addEventListener("pointerup", endLive);
+  }
   $("iv-dd-btn").onclick = (ev) => { ev.stopPropagation(); $("iv-dd-menu").hidden = !$("iv-dd-menu").hidden; };
   $("iv-dd-menu").addEventListener("click", (e) => {
     const b = e.target.closest("button[data-scope]");
@@ -1275,6 +1686,7 @@ function bind() {
     if (e.key === "Escape") {
       $("positions-modal").hidden = true;
       $("hist-modal").hidden = true;
+      $("target-modal").hidden = true;
       $("leg-pop").hidden = true;
       closeMenus(null);
     }
@@ -1299,7 +1711,9 @@ async function bootFromUrl(isPop) {
   if (decoded.legs && decoded.legs.length) {
     for (const e of decoded.legs) if (e.expiry) need.add(e.expiry);
   }
-  const def = expiryNearDays(uniqueExpiries(chainOf()), 30);
+  const haveExps = uniqueExpiries(chainOf());
+  const savedExp = lastUsedExpiry();
+  const def = (savedExp && haveExps.includes(savedExp)) ? savedExp : expiryNearDays(haveExps, 30);
   if (!need.size && def) need.add(def);
   await ensureExpiries([...need]);
   if (decoded.legs && decoded.legs.length) {
@@ -1315,6 +1729,12 @@ async function bootFromUrl(isPop) {
   if (!isPop) pushUrl(true);
   renderAll();
 }
+
+window.__builder = {
+  getState: () => state,
+  scheduleRender,
+};
+window.__lastRenderMs = 0;
 
 async function start() {
   bind();

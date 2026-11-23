@@ -68,7 +68,7 @@ market-data product. Do not treat this proxy as a commercial data feed; it
 is for education on this site only. A constant risk-free rate (4.1%) is used
 unless a later feed supplies one.
 
-Run the checks with `npm test` (`node --test tests/*.test.js`).
+Run the checks with `npm test` (`node --test tests/*.test.js`). Live control interactions are covered by `npm run test:e2e` (Playwright against a local fixture server; no live market data).
 
 ## License
 

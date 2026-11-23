@@ -172,7 +172,7 @@ a:hover { text-decoration: underline; }
   border-radius: 8px; padding: 6px 10px; cursor: pointer; white-space: nowrap; font-size: 12px;
 }
 .month-btn.is-on, .month-btn:hover { border-color: var(--gold); color: var(--text); background: var(--navy-2); }
-.day-row { display: flex; gap: 6px; flex-wrap: wrap; }
+.day-row { display: flex; gap: 6px; flex-wrap: nowrap; }
 .day-chip {
   background: var(--navy); border: 1px solid var(--line); color: var(--text);
   border-radius: 8px; min-width: 42px; padding: 6px 8px; cursor: pointer;
@@ -191,6 +191,7 @@ a:hover { text-decoration: underline; }
 }
 .strike-canvas { width: 100%; height: 100%; display: block; }
 .leg-chip {
+  touch-action: none;
   position: absolute; transform: translate(-50%, 0); z-index: 3;
   min-width: 44px; padding: 2px 6px; border-radius: 7px; font-size: 10px; font-weight: 750;
   text-align: center; cursor: grab; white-space: nowrap; box-shadow: 0 4px 10px rgba(0,0,0,0.35);
@@ -401,3 +402,28 @@ input[type="range"]::-webkit-slider-thumb {
   .toggles .seg { width: 100%; }
   .mode-seg .seg-btn { flex: 1 1 auto; }
 }
+
+.pnl-table th.date-focus,
+.pnl-table td.date-focus {
+  box-shadow: inset 0 0 0 1.5px var(--gold);
+}
+.pnl-table th.date-focus {
+  color: var(--gold-2);
+}
+
+.modal-sm { max-width: 360px; }
+.target-field {
+  display: flex; align-items: center; gap: 8px; margin: 12px 0 16px;
+  font-size: 13px; font-weight: 650;
+}
+.target-field input {
+  width: 120px; background: #0a101c; color: var(--text, #f4f6fb);
+  border: 1px solid var(--line, #243049); border-radius: 8px; padding: 8px 10px;
+  font: inherit;
+}
+.target-pct { color: var(--muted, #8b96ad); font-weight: 600; }
+.pnl-table tr.target-row th, .pnl-table tr.target-row td {
+  box-shadow: inset 0 0 0 1.5px #f5a623;
+}
+
+.leg-chip .badge { display: inline-block; margin-left: 3px; font-size: 9px; font-weight: 800; opacity: 0.95; }
