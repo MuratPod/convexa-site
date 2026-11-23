@@ -760,6 +760,14 @@ function showBuildCard(t) {
   if (btn) btn.addEventListener("click", () => applyTemplate(t.slug));
 }
 
+function monthRibbonLabel(key, prevKey) {
+  const dt = new Date(key + "-01T12:00:00-05:00");
+  const mon = dt.toLocaleDateString("en-US", { month: "short", timeZone: "America/New_York" });
+  const year = dt.toLocaleDateString("en-US", { year: "2-digit", timeZone: "America/New_York" });
+  if (!prevKey || prevKey.slice(0, 4) !== key.slice(0, 4)) return `${mon} '${year}`;
+  return mon;
+}
+
 function renderExpiryStrip() {
   const expiries = uniqueExpiries(chainOf());
   const byMonth = new Map();
@@ -774,35 +782,45 @@ function renderExpiryStrip() {
   if (primary && !state.month) state.month = primary.slice(0, 7);
   if (state.month && !byMonth.has(state.month) && primary) state.month = primary.slice(0, 7);
   const far = legExps.find((e) => e !== primary) || legExps[1];
-  const row = document.createElement("div");
-  row.className = "month-row";
+  const ribbon = document.createElement("div");
+  ribbon.className = "expiry-ribbon";
+  let prevKey = null;
   for (const m of months) {
-    const b = document.createElement("button");
-    b.type = "button";
-    b.className = "month-btn" + (m === state.month ? " is-on" : "");
-    const dt = new Date(m + "-01T12:00:00-05:00");
-    b.textContent = dt.toLocaleDateString("en-US", { month: "short", year: "2-digit", timeZone: "America/New_York" });
-    b.addEventListener("click", () => { state.month = m; renderExpiryStrip(); });
-    row.appendChild(b);
-  }
-  const days = document.createElement("div");
-  days.className = "day-row";
-  for (const e of (byMonth.get(state.month) || [])) {
-    const b = document.createElement("button");
-    b.type = "button";
-    const isPri = e === primary;
-    const isFar = far && e === far;
-    b.className = "day-chip" + (isPri ? " is-on" : "") + (isFar && !isPri ? " is-alt" : "") + (isFar && isPri ? " is-alt is-on" : "");
-    const d = Number(e.slice(8, 10));
-    const wd = etDate(Date.parse(e + "T12:00:00-05:00"), { weekday: "short" });
-    b.innerHTML = `${d}<small>${wd}</small>`;
-    b.addEventListener("click", () => onPickExpiry(e));
-    days.appendChild(b);
+    const group = document.createElement("div");
+    group.className = "exp-month" + (m === (primary && primary.slice(0, 7)) ? " is-on" : "");
+    const mb = document.createElement("button");
+    mb.type = "button";
+    mb.className = "month-btn" + (m === (primary && primary.slice(0, 7)) ? " is-on" : "");
+    mb.textContent = monthRibbonLabel(m, prevKey);
+    mb.addEventListener("click", () => {
+      group.scrollIntoView({ inline: "center", block: "nearest", behavior: "smooth" });
+    });
+    const days = document.createElement("div");
+    days.className = "day-row";
+    for (const e of (byMonth.get(m) || [])) {
+      const b = document.createElement("button");
+      b.type = "button";
+      const isPri = e === primary;
+      const isFar = far && e === far;
+      b.className = "day-chip" + (isPri ? " is-on" : "") + (isFar && !isPri ? " is-alt" : "") + (isFar && isPri ? " is-alt is-on" : "");
+      const d = Number(e.slice(8, 10));
+      const wd = etDate(Date.parse(e + "T12:00:00-05:00"), { weekday: "short" });
+      b.innerHTML = `${d}<small>${wd}</small>`;
+      b.addEventListener("click", () => onPickExpiry(e));
+      days.appendChild(b);
+    }
+    group.appendChild(mb);
+    group.appendChild(days);
+    ribbon.appendChild(group);
+    prevKey = m;
   }
   const host = $("expiry-strip");
   host.innerHTML = "";
-  host.appendChild(row);
-  host.appendChild(days);
+  host.appendChild(ribbon);
+  const onDay = host.querySelector(".day-chip.is-on");
+  if (onDay && typeof onDay.scrollIntoView === "function") {
+    try { onDay.scrollIntoView({ inline: "center", block: "nearest" }); } catch { /* ignore */ }
+  }
   const n = lastExpiryIso();
   const dte = n ? Math.max(0, Math.round((expiryCloseUtc(n) - Date.now()) / 86400000)) : 0;
   $("expiry-label").textContent = n
@@ -850,7 +868,7 @@ function renderStrikeStrip(flags) {
   const host = $("strike-strip");
   const spot = spotNow();
   const w = host.clientWidth || 734;
-  const h = host.clientHeight || 118;
+  const h = host.clientHeight || 70;
   if (flags && flags.fromResize && state._strikeWH && state._strikeWH[0] === w && state._strikeWH[1] === h) return;
   state._strikeWH = [w, h];
   const { lo, hi } = rulerWindow(spot, currentDte());
@@ -899,13 +917,22 @@ function renderStrikeStrip(flags) {
     ctx.fillStyle = "rgba(231,76,60,0.35)";
     ctx.fillRect(x - 2, midY, 4, dn);
   }
+  const chipXs = legs.map((leg) => {
+    const rawX = xOf(Number(leg.strike));
+    return clamp(rawX, padX, w - padX);
+  });
   ctx.fillStyle = "#6b7690";
   ctx.font = "10px Inter, sans-serif";
   ctx.textAlign = "center";
   const step = Math.max(1, Math.round(strikes.length / 12));
   strikes.forEach((k, i) => {
     if (i % step && k !== nearestStrike(strikes, spot)) return;
-    ctx.fillText(String(k), xOf(k), h - 6);
+    const label = String(k);
+    const x = xOf(k);
+    const tw = ctx.measureText(label).width;
+    const overlaps = chipXs.some((cx) => Math.abs(x - cx) < tw / 2 + 22);
+    if (overlaps) return;
+    ctx.fillText(label, x, h - 5);
   });
   if (spot) {
     const sx = xOf(spot);
