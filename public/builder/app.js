@@ -1238,8 +1238,7 @@ async function applyTemplate(slug, expiry) {
     state.month = exp.slice(0, 7);
     rememberExpiry(exp);
   }
-  const last = lastExpiryIso();
-  state.dateMs = last ? expiryCloseUtc(last) : Date.now();
+  state.dateMs = Date.now();
   state.ivMult = 1;
   $("build-menu").hidden = true;
   $("build-btn").setAttribute("aria-expanded", "false");
@@ -1723,8 +1722,7 @@ async function bootFromUrl(isPop) {
     await applyTemplate(state.template, def);
     return;
   }
-  const last = lastExpiryIso();
-  state.dateMs = last ? expiryCloseUtc(last) : Date.now();
+  state.dateMs = Date.now();
   if (state.activeExpiry) state.month = state.activeExpiry.slice(0, 7);
   if (!isPop) pushUrl(true);
   renderAll();
