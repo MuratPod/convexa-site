@@ -38,9 +38,25 @@ import {
   formatOcc,
 } from "./strategies.js";
 import { provider, BUILDER_SYMBOL } from "./data.js";
+import {
+  RANGE_MIN,
+  RANGE_MAX,
+  QTY_MAX,
+  TABLE_ROWS,
+  TABLE_COLS_MAX,
+  defaultRangeForDte,
+  tableRowPrices,
+  tableRowStep,
+  formatTablePrice,
+  sampleTradingDates,
+  midTime75,
+  shiftDateKeepRemaining,
+  rulerWindow,
+  signedStep,
+  parseSignedQty,
+} from "./layout.js";
 
 const SYMBOL = BUILDER_SYMBOL;
-const DEFAULT_RANGE = 0.12;
 const SAVE_KEY = "convexa-builder-saved-v2";
 const NOTICE_KEY = "convexa-builder-notice-v2";
 const COMM_KEY = "convexa-builder-comm-v1";
@@ -61,7 +77,7 @@ const state = {
   template: "iron-condor",
   activeExpiry: null,
   month: null,
-  range: DEFAULT_RANGE,
+  range: 0.12,
   ivMult: 1,
   ivScope: "average",
   dateMs: null,
@@ -71,13 +87,17 @@ const state = {
   pricingMode: "mid",
   commTrade: 0,
   commContract: 0,
-  commRt: false,
+  commRt: true,
   posTab: "open",
   hoverPx: null,
   histRange: "5d",
   liveFast: false,
   chipDrag: false,
   targetPx: null,
+  booting: false,
+  rangeFromUrl: false,
+  prev: null,
+  viewingPrev: false,
 };
 
 const $ = (id) => document.getElementById(id);
@@ -129,12 +149,137 @@ function openTargetDialog() {
 function markCustom() {
   if (state.template !== "custom") state.template = "custom";
 }
+
+function cloneLegs(legs) {
+  return JSON.parse(JSON.stringify(legs || []));
+}
+
+function snapshotPrev() {
+  if (state.booting || state.viewingPrev) return;
+  if (!state.legs.length) return;
+  state.prev = {
+    legs: cloneLegs(state.legs),
+    template: state.template,
+    activeExpiry: state.activeExpiry,
+  };
+  state.viewingPrev = false;
+  syncPrevButtons();
+}
+
+function syncPrevButtons() {
+  const el = $("prev-toggle");
+  if (!el) return;
+  const show = Boolean(state.prev);
+  el.hidden = !show;
+  const prevBtn = $("btn-prev-curve");
+  const currBtn = $("btn-curr-curve");
+  if (prevBtn) prevBtn.classList.toggle("is-on", Boolean(state.viewingPrev));
+  if (currBtn) currBtn.classList.toggle("is-on", !state.viewingPrev);
+}
+
+function setViewingPrev(on) {
+  if (!state.prev) return;
+  state.viewingPrev = Boolean(on);
+  syncPrevButtons();
+  renderAll();
+}
+
+function bookLegs() {
+  const src = (state.viewingPrev && state.prev) ? state.prev.legs : state.legs;
+  return (src || []).filter((l) => l && !l.closed && !l.excluded);
+}
+
+function otherScaledLegs() {
+  if (!state.prev) return null;
+  const src = state.viewingPrev
+    ? state.legs.filter((l) => l && !l.closed && !l.excluded)
+    : (state.prev.legs || []).filter((l) => l && !l.closed && !l.excluded);
+  return src.length ? scaledLegs(src) : null;
+}
+
+function legsSignature(legs) {
+  return (legs || [])
+    .filter((l) => l && !l.closed && !l.excluded)
+    .map((l) => [l.kind || "option", l.side, Math.abs(Number(l.qty) || 1), l.type, l.expiry || "", Number(l.strike) || 0].join(":"))
+    .sort()
+    .join("|");
+}
+
+function maybeRestoreTemplate() {
+  const open = state.legs.filter((l) => l && !l.closed && !l.excluded);
+  if (!open.length) return;
+  const cur = legsSignature(open);
+  const exp = state.activeExpiry || lastExpiryIso();
+  const chain = { ...chainOf(), price: spotNow() };
+  const style = styleOf();
+  for (const t of CATALOG) {
+    const built = buildTemplate(t.slug, { chain, spot: spotNow(), expiry: exp, style });
+    if (built && built.length && legsSignature(built) === cur) {
+      state.template = t.slug;
+      return;
+    }
+  }
+}
+
+function signedQtyOf(leg) {
+  const n = Math.abs(Number(leg.qty) || 1);
+  return leg.side === "sell" ? -n : n;
+}
+
+function applySignedQty(leg, n) {
+  const v = Math.round(Number(n));
+  if (!Number.isFinite(v) || v === 0 || Math.abs(v) > QTY_MAX) return false;
+  leg.side = v < 0 ? "sell" : "buy";
+  leg.qty = Math.abs(v);
+  return true;
+}
+
+function currentDte() {
+  const last = lastExpiryIso();
+  if (!last) return 32;
+  return Math.max(0, (expiryCloseUtc(last) - Date.now()) / 86400000);
+}
+
+function sessionRangeDefault() {
+  return defaultRangeForDte(currentDte());
+}
+
+function dateStops() {
+  const last = lastExpiryIso();
+  const end = last ? expiryCloseUtc(last) : Date.now();
+  const now = Date.now();
+  if (end <= now) return [now];
+  const out = [now];
+  const hour = 3600000;
+  for (let h = 1; h <= 24; h++) {
+    const t = now + h * hour;
+    if (t >= end - 60000) break;
+    out.push(t);
+  }
+  for (const d of tradingDays(now + 24 * hour, end)) {
+    if (d - out[out.length - 1] > hour * 0.5) out.push(d);
+  }
+  if (out[out.length - 1] < end - 60000) out.push(end);
+  return out;
+}
+
+function dateSliderLabel(t) {
+  const now = Date.now();
+  const hours = (Number(t) - now) / 3600000;
+  if (!Number.isFinite(hours) || Math.abs(hours) < 0.25) return "Now";
+  if (hours >= 0 && hours < 24) {
+    const h = Math.max(1, Math.round(hours));
+    return `${dateShortLabel(t)} (${h}h)`;
+  }
+  const daysFromNow = Math.max(0, Math.round((Number(t) - now) / 86400000));
+  return `${dateShortLabel(t)} (${daysFromNow}d)`;
+}
 const rate = () => (state.quote && Number(state.quote.rate)) || 0.041;
 const yieldQ = () => (state.quote && Number(state.quote.yield)) || 0;
 const styleOf = () => (state.quote && state.quote.style) || "american";
 const spotNow = () => (state.quote && Number(state.quote.price)) || 0;
 const optionLegs = (legs = state.legs) => legs.filter((l) => l && !l.closed && l.kind !== "stock" && l.type !== "S");
-const openLegs = () => state.legs.filter((l) => l && !l.closed && !l.excluded);
+const openLegs = () => bookLegs();
 const chainOf = () => state.chain;
 
 function toast(msg, ms = 4000) {
@@ -263,12 +408,22 @@ function analytics() {
   return out;
 }
 
-function avgIv() {
-  const ivs = optionLegs(openLegs()).map((l) => {
+function baseIv() {
+  let w = 0, s = 0;
+  for (const l of optionLegs(openLegs())) {
     const apply = state.ivScope === "average" || !state.ivScope || state.ivScope === l.expiry;
-    return Math.max(0, (Number(l.iv) || 0) * (apply ? state.ivMult : 1));
-  }).filter((v) => v > 0);
-  return ivs.length ? ivs.reduce((a, b) => a + b, 0) / ivs.length : 0;
+    if (!apply) continue;
+    const iv = Number(l.iv) || 0;
+    if (!(iv > 0)) continue;
+    const q = Math.abs(Number(l.qty) || 1);
+    s += iv * q;
+    w += q;
+  }
+  return w ? s / w : 0;
+}
+
+function avgIv() {
+  return baseIv() * (state.ivMult || 1);
 }
 
 function fillFromContract(leg) {
@@ -404,9 +559,15 @@ function wideSpread(leg) {
 }
 
 function occLabel(leg) {
-  if (leg.kind === "stock" || leg.type === "S") return `${leg.side === "sell" ? "−" : "+"}${leg.qty} QQQ`;
-  const side = leg.side === "sell" ? "−" : "+";
-  return `${side}${leg.qty} ${formatOcc(SYMBOL, leg.expiry, leg.type, leg.strike)}`;
+  const short = leg.side === "sell";
+  if (leg.kind === "stock" || leg.type === "S") {
+    const q = Math.abs(Number(leg.qty) || 100);
+    const qBit = q !== 100 ? `${short ? "−" : ""}${q}× ` : (short ? "−" : "+");
+    return `${qBit}QQQ`;
+  }
+  const q = Math.abs(Number(leg.qty) || 1);
+  const qBit = q !== 1 ? `${short ? "−" : ""}${q}× ` : (short ? "−" : "+");
+  return `${qBit}${formatOcc(SYMBOL, leg.expiry, leg.type, leg.strike)}`;
 }
 
 function pushUrl(replace = true) {
@@ -502,8 +663,9 @@ function zeroCrossings(pts) {
 
 function chipInner(leg) {
   const typ = leg.type === "P" || leg.type === "put" ? "put" : "call";
-  const qtyBit = Number(leg.qty) !== 1 ? `${leg.qty}× ` : "";
-  const tag = uniqueLegExpiries().length > 1
+  const q = Math.abs(Number(leg.qty) || 1);
+  const qtyBit = q !== 1 ? `${leg.side === "sell" ? "−" : ""}${q}× ` : "";
+  const tag = (uniqueLegExpiries().length > 1 || state.viewingPrev)
     ? `<span class="tag">${etDate(Date.parse(leg.expiry + "T12:00:00-05:00"), { month: "short", day: "numeric" })}</span>`
     : "";
   const badge = Number.isFinite(Number(leg.customPrice)) ? `<span class="badge">@</span>` : "";
@@ -609,6 +771,10 @@ function renderExpiryStrip() {
 }
 
 async function onPickExpiry(iso) {
+  snapshotPrev();
+  const oldExp = lastExpiryIso();
+  const oldEnd = oldExp ? expiryCloseUtc(oldExp) : Date.now();
+  const kept = state.dateMs;
   await ensureExpiries([iso]);
   const editId = state.expiryEditLegId;
   if (editId) {
@@ -631,16 +797,11 @@ async function onPickExpiry(iso) {
   state.activeExpiry = iso;
   state.month = iso.slice(0, 7);
   rememberExpiry(iso);
-  // Date slider returns to Now after an expiry change.
-  state.dateMs = Date.now();
   const last = lastExpiryIso();
-  if (last) {
-    const sl = $("date-slider");
-    const days = tradingDays(Date.now(), expiryCloseUtc(last));
-    sl.max = String(Math.max(0, days.length - 1));
-    sl.value = "0";
-    sl.disabled = days.length < 2;
-  }
+  const newEnd = last ? expiryCloseUtc(last) : Date.now();
+  // Keep days-remaining roughly constant; do not reset to Now.
+  state.dateMs = shiftDateKeepRemaining(kept || Date.now(), oldEnd, newEnd, Date.now());
+  maybeRestoreTemplate();
   pushUrl();
   renderAll();
 }
@@ -650,8 +811,7 @@ function renderStrikeStrip() {
   const spot = spotNow();
   const w = host.clientWidth || 734;
   const h = host.clientHeight || 118;
-  const lo = spot * (1 - state.range * 1.15);
-  const hi = spot * (1 + state.range * 1.15);
+  const { lo, hi } = rulerWindow(spot, currentDte());
   const padX = 36;
   const xOf = (k) => padX + ((k - lo) / (hi - lo)) * (w - 2 * padX);
   const legs = openLegs().filter((l) => l.kind !== "stock" && l.type !== "S");
@@ -718,17 +878,20 @@ function renderStrikeStrip() {
   }
 
   for (const leg of legs) {
-    const x = xOf(Number(leg.strike));
-    if (x < -20 || x > w + 20) continue;
+    const rawX = xOf(Number(leg.strike));
+    const x = clamp(rawX, padX, w - padX);
     const chip = document.createElement("div");
     const typ = leg.type === "P" || leg.type === "put" ? "put" : "call";
     chip.className = `leg-chip ${leg.side === "sell" ? "short" : "long"} ${typ}`;
     if (wideSpread(leg)) chip.classList.add("warn");
     if (far && leg.expiry === far) chip.classList.add("exp-b");
+    if (state.viewingPrev) chip.classList.add("is-prev");
     chip.innerHTML = chipInner(leg);
     chip.style.left = x + "px";
     chip.dataset.id = leg.id;
-    bindDrag(chip, leg, { xOf, lo, hi, padX, w, strikes: strikes.length ? strikes : [...byK.keys()].sort((a, b) => a - b) });
+    if (!state.viewingPrev) {
+      bindDrag(chip, leg, { xOf, lo, hi, padX, w, strikes: strikes.length ? strikes : [...byK.keys()].sort((a, b) => a - b) });
+    }
     host.appendChild(chip);
   }
 }
@@ -773,12 +936,15 @@ function bindDrag(chip, leg, { xOf, lo, hi, padX, w, strikes }) {
     }
     const snap = Number(chip.dataset.snap);
     if (Number.isFinite(snap)) applySnap(snap);
+    maybeRestoreTemplate();
     pushUrl();
     scheduleRender({ all: true });
   };
   chip.addEventListener("pointerdown", (ev) => {
     ev.preventDefault();
     ev.stopPropagation();
+    if (state.viewingPrev) return;
+    snapshotPrev();
     startX = ev.clientX;
     moved = false;
     chip.classList.add("is-drag");
@@ -869,7 +1035,7 @@ function renderGraph(a) {
     pts: expiryPts,
   });
   if (offExpiry) {
-    const tMid = tSel + (tExp - tSel) / 2;
+    const tMid = midTime75(now, tExp);
     series.push({
       id: "mid",
       label: `${etDate(tMid, { weekday: "short", month: "short", day: "numeric" })} (${daysLeft(tMid)}d)`,
@@ -887,7 +1053,20 @@ function renderGraph(a) {
       pts: xs.map((x) => [x, pnlAt(x, tSel, legs)]),
     });
   }
-  const focus = series.find((s) => s.id === "selected") || series[0];
+  const other = otherScaledLegs();
+  if (other) {
+    const tPrev = offExpiry ? tSel : tExp;
+    series.push({
+      id: "previous",
+      label: state.viewingPrev ? "Current" : "Previous",
+      color: "#8b96ad",
+      dash: "2 3",
+      width: 1.15,
+      pts: xs.map((x) => [x, pnlAt(x, tPrev, other)]),
+      overlay: true,
+    });
+  }
+  const focus = series.find((s) => s.id === "selected") || series.find((s) => s.id === "expiry") || series[0];
   const ys = series.flatMap((s) => s.pts.map((p) => p[1])).filter(Number.isFinite);
   let yMin = Math.min(0, ...ys);
   let yMax = Math.max(0, ...ys);
@@ -1005,6 +1184,8 @@ function renderGraph(a) {
     const pct = ((x - spot) / spot) * 100;
     const z = (Math.log(Math.max(x, 1e-8)) - mu) / (sd || 1);
     const below = normCdf(z) * 100;
+    const legend = svg.querySelector("[data-legend]");
+    if (legend) legend.setAttribute("visibility", "hidden");
     tip.hidden = false;
     tip.style.left = Math.min(r.width - 160, Math.max(8, (hx / W) * r.width + 10)) + "px";
     tip.style.top = Math.max(8, (hy / H) * r.height - 48) + "px";
@@ -1029,6 +1210,8 @@ function renderGraph(a) {
   const onLeave = () => {
     hoverEv = null;
     tip.hidden = true;
+    const legend = svg.querySelector("[data-legend]");
+    if (legend) legend.setAttribute("visibility", "visible");
     const pill = wrap.querySelector(".prob-pill");
     if (pill) pill.hidden = true;
     const hxline = svg.querySelector("#hover-x");
@@ -1044,7 +1227,11 @@ function renderGraph(a) {
     if (!clickAt) return;
     const dist = Math.hypot(ev.clientX - clickAt.x, ev.clientY - clickAt.y);
     clickAt = null;
-    if (dist < 5) openTargetDialog();
+    if (dist < 5) {
+      const node = ev.target && ev.target.closest ? ev.target.closest("[data-legend]") : null;
+      if (node) return;
+      openTargetDialog();
+    }
   };
 }
 
@@ -1074,47 +1261,62 @@ function renderTable(a) {
   const last = lastExpiryIso();
   const end = last ? expiryCloseUtc(last) : Date.now();
   const dates = tradingDays(Date.now(), end);
-  // Keep the table readable: at most ~10 date columns, always include now + expiry.
-  const cols = thinDates(dates, 10);
-  const rows = [];
-  const n = 21;
-  const lo = spot * (1 - state.range);
-  const hi = spot * (1 + state.range);
-  for (let i = 0; i < n; i++) {
-    const px = hi - (hi - lo) * (i / (n - 1));
-    rows.push(px);
-  }
-  const nearSpot = rows.reduce((b, x) => Math.abs(x - spot) < Math.abs(b - spot) ? x : b, rows[0]);
-  const focusCol = cols.reduce((b, tm) => Math.abs(tm - (state.dateMs || end)) < Math.abs(b - (state.dateMs || end)) ? tm : b, cols[0]);
+  const cols = sampleTradingDates(dates, TABLE_COLS_MAX);
+  const rows = tableRowPrices(spot, state.range);
+  const step = tableRowStep(spot, state.range);
   const legs = a.legs || scaledLegs();
   const vals = rows.map((px) => cols.map((tm) => pnlAt(px, tm, legs)));
   const flat = vals.flat().filter(Number.isFinite);
   const maxAbs = Math.max(1, ...flat.map((v) => Math.abs(v)));
-  const head = cols.map((tm) => `<th data-c="${tm}" class="${tm === focusCol ? "date-focus" : ""}">${etDate(tm, { month: "short", day: "numeric" })}</th>`).join("");
+  const wide = (host.clientWidth || 760) / Math.max(1, cols.length) > 36;
+  const dowOf = (tm) => {
+    const w = etDate(tm, { weekday: "short" });
+    return w === "Thu" ? "Th" : w === "Tue" ? "Tu" : w.slice(0, 1);
+  };
+  const monthRow = [];
+  let i = 0;
+  while (i < cols.length) {
+    const key = etDate(cols[i], { month: "short", year: "numeric" });
+    let j = i + 1;
+    while (j < cols.length && etDate(cols[j], { month: "short", year: "numeric" }) === key) j++;
+    monthRow.push(`<th colspan="${j - i}">${etDate(cols[i], { month: "short" })}</th>`);
+    i = j;
+  }
+  const head = cols.map((tm) => {
+    const day = etDate(tm, { day: "numeric" });
+    const suf = wide ? `<span class="dow">${dowOf(tm)}</span>` : "";
+    return `<th data-c="${tm}"><span class="day-num">${day}</span>${suf}</th>`;
+  }).join("");
   const targetRow = Number(state.targetPx) > 0
     ? rows.reduce((b, x) => Math.abs(x - state.targetPx) < Math.abs(b - state.targetPx) ? x : b, rows[0])
     : null;
-  const body = rows.map((px, i) => {
+  const body = rows.map((px, ri) => {
     const pct = ((px - spot) / spot) * 100;
-    const spotCls = (px === nearSpot ? " spot-row" : "") + (targetRow != null && px === targetRow ? " target-row" : "");
-    const cells = vals[i].map((v, j) => {
+    const spotCls = (ri === 10 ? " spot-row" : "") + (targetRow != null && px === targetRow ? " target-row" : "");
+    const cells = vals[ri].map((v, j) => {
       const bg = heat(v, maxAbs);
-      const focus = cols[j] === focusCol ? " date-focus" : "";
-      const cls = (v > 0 ? "up" : v < 0 ? "dn" : "") + focus;
-      return `<td class="${cls}" data-r="${i}" data-c="${cols[j]}" style="background:${bg}">${displayNumber(v, a, px, cols[j])}</td>`;
+      const cls = (v > 0 ? "up" : v < 0 ? "dn" : "");
+      return `<td class="${cls}" data-r="${ri}" data-c="${cols[j]}" style="background:${bg}">${displayNumber(v, a, px, cols[j])}</td>`;
     }).join("");
-    return `<tr class="${spotCls}" data-r="${i}"><th class="sticky-col">${fmtPx(px, 2)} <span style="color:#8b96ad">${pct >= 0 ? "+" : ""}${pct.toFixed(1)}%</span></th>${cells}</tr>`;
+    return `<tr class="${spotCls}" data-r="${ri}"><th class="sticky-col" data-r="${ri}">${formatTablePrice(px, step)} <span style="color:#8b96ad">${pct >= 0 ? "+" : ""}${pct.toFixed(1)}%</span></th>${cells}</tr>`;
   }).join("");
-  host.innerHTML = `<table class="pnl-table"><thead><tr><th class="sticky-col">Price</th>${head}</tr></thead><tbody>${body}</tbody></table>`;
+  host.innerHTML = `<table class="pnl-table"><thead><tr class="month-row"><th class="sticky-col">Price</th>${monthRow.join("")}</tr><tr><th class="sticky-col"></th>${head}</tr></thead><tbody>${body}</tbody></table>`;
   const table = host.querySelector("table");
   table.addEventListener("mouseover", (ev) => {
-    const td = ev.target.closest("td,th");
-    if (!td) return;
+    const cell = ev.target.closest("td,th");
+    if (!cell) return;
     table.querySelectorAll(".hi-col,.hi-row").forEach((n) => n.classList.remove("hi-col", "hi-row"));
-    const r = td.dataset.r ?? td.parentElement.dataset.r;
-    const c = td.dataset.c;
+    const r = cell.dataset.r ?? cell.parentElement.dataset.r;
+    const c = cell.dataset.c;
     if (r != null) table.querySelectorAll(`[data-r="${r}"]`).forEach((n) => n.classList.add("hi-row"));
     if (c) table.querySelectorAll(`[data-c="${c}"]`).forEach((n) => n.classList.add("hi-col"));
+  });
+  table.addEventListener("mouseleave", () => {
+    table.querySelectorAll(".hi-col,.hi-row").forEach((n) => n.classList.remove("hi-col", "hi-row"));
+  });
+  table.addEventListener("click", (ev) => {
+    ev.preventDefault();
+    ev.stopPropagation();
   });
 }
 
@@ -1136,30 +1338,33 @@ function heat(v, maxAbs) {
 function renderSliders(a, { keepInput = false } = {}) {
   const last = lastExpiryIso();
   const end = last ? expiryCloseUtc(last) : Date.now();
-  const days = tradingDays(Date.now(), end);
+  const stops = dateStops();
   const sl = $("date-slider");
   const active = keepInput ? document.activeElement : null;
+  const dateRow = $("date-row");
+  if (dateRow) dateRow.hidden = state.view === "table";
   sl.min = "0";
-  sl.max = String(Math.max(0, days.length - 1));
-  sl.disabled = days.length < 2;
+  sl.max = String(Math.max(0, stops.length - 1));
+  sl.disabled = stops.length < 2;
   if (active !== sl) {
-    let idx = days.findIndex((tm) => tm >= (state.dateMs || end) - 36e5);
-    if (idx < 0) idx = days.length - 1;
+    let idx = 0, best = Infinity;
+    const want = state.dateMs || Date.now();
+    for (let i = 0; i < stops.length; i++) {
+      const d = Math.abs(stops[i] - want);
+      if (d < best) { best = d; idx = i; }
+    }
     sl.value = String(idx);
-    state.dateMs = days[idx] || end;
   }
-  const t = state.dateMs || end;
-  const daysFromNow = Math.max(0, Math.round((t - Date.now()) / 86400000));
+  const t = state.dateMs || Date.now();
   const daysRem = Math.max(0, Math.round((end - t) / 86400000));
-  const nearNow = Math.abs(t - Date.now()) < 36e5 * 18;
-  $("date-label").textContent = nearNow && !isAtExpiry(t)
-    ? "Now"
-    : `${dateShortLabel(t)} (${daysFromNow}d)`;
+  $("date-label").textContent = isAtExpiry(t) && Math.abs(t - end) < 36e5
+    ? dateSliderLabel(t)
+    : dateSliderLabel(t);
   $("date-right").textContent = isAtExpiry(t) ? "At expiration" : `${daysRem}d remaining`;
   const rangePct = state.range * 100;
   $("range-label").textContent = `±${Number.isInteger(Math.round(rangePct * 10) / 10) && Math.abs(rangePct - Math.round(rangePct)) < 0.05 ? String(Math.round(rangePct)) : rangePct.toFixed(1)}%`;
   if (active !== $("range-slider")) $("range-slider").value = String(Math.round(rangePct * 10) / 10);
-  if ($("range-reset")) $("range-reset").hidden = Math.abs(state.range - DEFAULT_RANGE) < 0.0005;
+  if ($("range-reset")) $("range-reset").hidden = Math.abs(state.range - sessionRangeDefault()) < 0.0005;
 
   const iv = avgIv();
   const base = iv / (state.ivMult || 1);
@@ -1202,6 +1407,7 @@ function renderAll() {
   renderToggles();
   if (state.view === "table") renderTable(a);
   else renderGraph(a);
+  syncPrevButtons();
   if ($("positions-modal") && !$("positions-modal").hidden) renderPositions();
 }
 
@@ -1230,6 +1436,7 @@ async function applyTemplate(slug, expiry) {
       legs = buildTemplate(id, { chain: { ...chainOf(), price: spotNow() }, spot: spotNow(), expiry: exp, style: styleOf() });
     }
   }
+  if (!state.booting && state.legs.length) snapshotPrev();
   state.template = templateBySlug(id) ? id : (id === "custom" ? "custom" : "iron-condor");
   state.legs = (legs || []).map((l) => fillFromContract(l));
   state.closed = [];
@@ -1238,8 +1445,11 @@ async function applyTemplate(slug, expiry) {
     state.month = exp.slice(0, 7);
     rememberExpiry(exp);
   }
-  state.dateMs = Date.now();
-  state.ivMult = 1;
+  if (state.booting) {
+    state.dateMs = Date.now();
+    if (!state.rangeFromUrl) state.range = sessionRangeDefault();
+    state.ivMult = 1;
+  }
   $("build-menu").hidden = true;
   $("build-btn").setAttribute("aria-expanded", "false");
   pushUrl(true);
@@ -1264,6 +1474,7 @@ async function addLeg(kind, side, type) {
     style: styleOf(),
     symbol: SYMBOL,
   }));
+  snapshotPrev();
   state.legs.push(leg);
   state.template = "custom";
   $("add-menu").hidden = true;
@@ -1305,7 +1516,7 @@ function renderPositions() {
     const cls = pnl > 0 ? "up" : pnl < 0 ? "dn" : "";
     return `<div class="pos-row" data-id="${l.id}">
       <button type="button" class="gear" data-gear="${l.id}" aria-label="Edit leg">⚙</button>
-      <div><div class="sym">${occLabel(l)}</div><div class="dir">${l.side === "sell" ? "Short" : "Long"} · ${l.excluded ? "Excluded" : (l.closed ? "Closed" : "Open")}</div></div>
+      <div><div class="sym">${occLabel(l)}</div><div class="dir">${l.side === "sell" ? "STO" : "BTO"} · ${l.excluded ? "Excluded" : (l.closed ? "Closed" : "Open")}</div></div>
       <div class="px">${fmtPx(entryPx(l), 2)}</div>
       <div class="px ${cls}">${formatMoney(pnl, { signed: true, decimals: 0 })}</div>
     </div>`;
@@ -1317,6 +1528,8 @@ function renderPositions() {
   $("pos-list").querySelectorAll("[data-gear]").forEach((b) => b.addEventListener("click", (ev) => openLegPop(ev, b.dataset.gear)));
   $("px-mid").classList.toggle("is-on", state.pricingMode === "mid");
   $("px-ba").classList.toggle("is-on", state.pricingMode === "ba");
+  const hasCustom = state.legs.some((l) => l && Number.isFinite(Number(l.customPrice)));
+  if ($("pos-reset-px")) $("pos-reset-px").disabled = !hasCustom;
 }
 
 function findLeg(id) {
@@ -1324,17 +1537,22 @@ function findLeg(id) {
 }
 
 function openLegPop(ev, id) {
+  if (state.viewingPrev) return;
   const leg = findLeg(id);
   if (!leg) return;
   const pop = $("leg-pop");
   const typ = leg.type === "P" || leg.type === "put" ? "put" : (leg.kind === "stock" ? "stock" : "call");
-  const g = typ === "stock" ? null : optionGreeks(spotNow(), Number(leg.strike), yearsUntil(leg.expiry), rate(), yieldQ(), Math.max(1e-6, (Number(leg.iv) || 0) * state.ivMult), typ, styleOf());
+  const sign = leg.side === "sell" ? -1 : 1;
+  const rawG = typ === "stock" ? null : optionGreeks(spotNow(), Number(leg.strike), yearsUntil(leg.expiry), rate(), yieldQ(), Math.max(1e-6, (Number(leg.iv) || 0) * state.ivMult), typ, styleOf());
+  const g = rawG ? { delta: rawG.delta * sign, theta: rawG.theta * sign, gamma: rawG.gamma * sign, vega: rawG.vega * sign, rho: rawG.rho * sign } : null;
+  const closeLabel = leg.side === "sell" ? "Buy to Close" : "Sell to Close";
+  const switchLabel = typ === "put" ? "Switch to Call" : "Switch to Put";
   pop.hidden = false;
   pop.innerHTML = `
     <div class="pop-head"><strong>${occLabel(leg)}</strong><button type="button" class="icon-x" id="pop-close" aria-label="Close">×</button></div>
     <div class="stepper">
       <button type="button" id="qty-dec">−</button>
-      <strong id="qty-val">${leg.qty}</strong>
+      <input id="qty-val" class="qty-input" type="text" inputmode="numeric" value="${signedQtyOf(leg)}" aria-label="Quantity">
       <button type="button" id="qty-inc">+</button>
     </div>
     <label>Price <input id="pop-px" type="number" step="0.01" min="0" value="${entryPx(leg) ?? ""}"></label>
@@ -1350,33 +1568,80 @@ function openLegPop(ev, id) {
       <div>Vega<strong>${g ? g.vega.toFixed(3) : "—"}</strong></div>
       <div>Rho<strong>${g ? g.rho.toFixed(3) : "—"}</strong></div>
     </div>
-    ${typ === "stock" ? "" : `<div class="seg"><button type="button" class="seg-btn ${typ === "call" ? "is-on" : ""}" id="pop-call">Call</button><button type="button" class="seg-btn ${typ === "put" ? "is-on" : ""}" id="pop-put">Put</button></div>`}
+    ${typ === "stock" ? "" : `<button type="button" class="btn-ghost" id="pop-switch">${switchLabel}</button>`}
     <div class="pop-acts">
       <button type="button" class="btn-ghost" id="pop-exclude">${leg.excluded ? "Include" : "Exclude"}</button>
       <button type="button" class="btn-ghost" id="pop-exp">Change expiration</button>
-      <button type="button" class="btn-ghost" id="pop-close-leg">Close</button>
+      <button type="button" class="btn-ghost" id="pop-close-leg">${closeLabel}</button>
       <button type="button" class="btn-ghost" id="pop-remove">Remove</button>
     </div>
   `;
   const r = ev.target.getBoundingClientRect();
   pop.style.left = Math.min(window.innerWidth - 300, Math.max(8, r.left)) + "px";
   pop.style.top = Math.min(window.innerHeight - 40, r.bottom + 6) + "px";
+  const qtyInput = $("qty-val");
+  const refreshPopGreeks = () => {
+    const typNow = leg.type === "P" || leg.type === "put" ? "put" : (leg.kind === "stock" ? "stock" : "call");
+    const sign = leg.side === "sell" ? -1 : 1;
+    const rawG = typNow === "stock" ? null : optionGreeks(spotNow(), Number(leg.strike), yearsUntil(leg.expiry), rate(), yieldQ(), Math.max(1e-6, (Number(leg.iv) || 0) * state.ivMult), typNow, styleOf());
+    const map = [
+      ["Delta", rawG ? (rawG.delta * sign).toFixed(3) : "—"],
+      ["Theta", rawG ? (rawG.theta * sign).toFixed(3) : "—"],
+      ["Gamma", rawG ? (rawG.gamma * sign).toFixed(4) : "—"],
+      ["Vega", rawG ? (rawG.vega * sign).toFixed(3) : "—"],
+      ["Rho", rawG ? (rawG.rho * sign).toFixed(3) : "—"],
+    ];
+    for (const [label, val] of map) {
+      const el = [...pop.querySelectorAll(".pop-grid div")].find((d) => (d.childNodes[0] && d.childNodes[0].textContent || "").trim() === label);
+      const strong = el && el.querySelector("strong");
+      if (strong) strong.textContent = val;
+    }
+    const closeBtn = $("pop-close-leg");
+    if (closeBtn) closeBtn.textContent = leg.side === "sell" ? "Buy to Close" : "Sell to Close";
+    const sw = $("pop-switch");
+    if (sw) sw.textContent = typNow === "put" ? "Switch to Call" : "Switch to Put";
+  };
   const livePop = () => {
-    $("qty-val").textContent = String(leg.qty);
+    qtyInput.value = String(signedQtyOf(leg));
+    qtyInput.classList.remove("is-bad");
+    maybeRestoreTemplate();
     scheduleRender({ title: true, stats: true, view: true, sliders: true, strikes: true, url: true, positions: true });
+    const head = pop.querySelector(".pop-head strong");
+    if (head) head.textContent = occLabel(leg);
+    refreshPopGreeks();
   };
-  const done = () => { pop.hidden = true; pushUrl(); renderAll(); };
+  const done = () => { pop.hidden = true; maybeRestoreTemplate(); pushUrl(); renderAll(); };
   $("pop-close").onclick = () => { pop.hidden = true; };
-  $("qty-dec").onclick = () => {
-    const step = leg.kind === "stock" ? 100 : 1;
-    leg.qty = Math.max(step, (Number(leg.qty) || step) - step);
+  const stepQty = (dir) => {
+    snapshotPrev();
+    const step = leg.kind === "stock" ? (dir < 0 ? -100 : 100) : dir;
+    let next = signedQtyOf(leg) + (leg.kind === "stock" ? step : (dir < 0 ? -1 : 1));
+    if (next === 0) next = dir < 0 ? (leg.kind === "stock" ? -100 : -1) : (leg.kind === "stock" ? 100 : 1);
+    if (!applySignedQty(leg, next)) return;
     livePop();
   };
-  $("qty-inc").onclick = () => {
-    const step = leg.kind === "stock" ? 100 : 1;
-    leg.qty = (Number(leg.qty) || step) + step;
-    livePop();
+  $("qty-dec").onclick = () => stepQty(-1);
+  $("qty-inc").onclick = () => stepQty(1);
+  const commitQty = () => {
+    const parsed = parseSignedQty(qtyInput.value);
+    if (parsed == null) {
+      qtyInput.classList.add("is-bad");
+      qtyInput.value = String(signedQtyOf(leg));
+      setTimeout(() => { qtyInput.classList.remove("is-bad"); qtyInput.value = String(signedQtyOf(leg)); }, 700);
+      return;
+    }
+    snapshotPrev();
+    if (applySignedQty(leg, parsed)) livePop();
+    else {
+      qtyInput.classList.add("is-bad");
+      qtyInput.value = String(signedQtyOf(leg));
+    }
   };
+  qtyInput.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") { e.preventDefault(); commitQty(); qtyInput.blur(); }
+    if (e.key === "Escape") { qtyInput.value = String(signedQtyOf(leg)); qtyInput.blur(); }
+  });
+  qtyInput.addEventListener("blur", commitQty);
   const onPx = () => {
     const v = Number($("pop-px").value);
     leg.customPrice = Number.isFinite(v) ? v : null;
@@ -1385,9 +1650,17 @@ function openLegPop(ev, id) {
   };
   $("pop-px").oninput = onPx;
   $("pop-px").onchange = onPx;
-  if ($("pop-call")) $("pop-call").onclick = () => { leg.type = "C"; fillFromContract(leg); openLegPop(ev, id); };
-  if ($("pop-put")) $("pop-put").onclick = () => { leg.type = "P"; fillFromContract(leg); openLegPop(ev, id); };
-  $("pop-exclude").onclick = () => { leg.excluded = !leg.excluded; done(); };
+  if ($("pop-switch")) $("pop-switch").onclick = () => {
+    snapshotPrev();
+    leg.type = typ === "put" ? "C" : "P";
+    fillFromContract(leg);
+    markCustom();
+    openLegPop(ev, id);
+    maybeRestoreTemplate();
+    pushUrl();
+    renderAll();
+  };
+  $("pop-exclude").onclick = () => { snapshotPrev(); leg.excluded = !leg.excluded; done(); };
   $("pop-exp").onclick = () => {
     state.expiryEditLegId = leg.id;
     pop.hidden = true;
@@ -1399,12 +1672,14 @@ function openLegPop(ev, id) {
     const strip = $("expiry-strip");
     if (strip) strip.scrollIntoView({ behavior: "smooth", block: "center" });
   };
-  $("pop-close-leg").onclick = () => { leg.closed = true; state.closed.push(leg); done(); };
-  $("pop-remove").onclick = () => { state.legs = state.legs.filter((x) => x.id !== leg.id); done(); };
+  $("pop-close-leg").onclick = () => { snapshotPrev(); leg.closed = true; state.closed.push(leg); maybeRestoreTemplate(); done(); };
+  $("pop-remove").onclick = () => { snapshotPrev(); state.legs = state.legs.filter((x) => x.id !== leg.id); maybeRestoreTemplate(); done(); };
 }
 
 function flipPositions() {
-  for (const l of openLegs()) l.side = l.side === "sell" ? "buy" : "sell";
+  snapshotPrev();
+  state.viewingPrev = false;
+  for (const l of state.legs.filter((x) => x && !x.closed && !x.excluded)) l.side = l.side === "sell" ? "buy" : "sell";
   renderPositions();
   pushUrl();
   renderAll();
@@ -1610,19 +1885,23 @@ function bind() {
   };
   $("date-slider").oninput = () => {
     state.liveFast = true;
-    const last = lastExpiryIso();
-    const days = tradingDays(Date.now(), last ? expiryCloseUtc(last) : Date.now());
+    const stops = dateStops();
     const idx = Number($("date-slider").value);
-    state.dateMs = days[idx] || state.dateMs;
-    // Graph + table update live; strip max profit / BEs stay expiry-based. COP refreshes on release.
+    state.dateMs = stops[idx] || state.dateMs;
     scheduleRender({ sliders: true, view: true });
   };
   $("range-slider").oninput = () => {
     state.liveFast = true;
-    state.range = clamp(Number($("range-slider").value) / 100, 0.01, 0.84);
-    scheduleRender({ sliders: true, view: true, strikes: true });
+    state.range = clamp(Number($("range-slider").value) / 100, RANGE_MIN, RANGE_MAX);
+    scheduleRender({ sliders: true, view: true });
   };
-  $("range-reset").onclick = () => { state.range = DEFAULT_RANGE; state.liveFast = false; scheduleRender({ sliders: true, view: true, strikes: true }); };
+  $("range-reset").onclick = () => {
+    state.range = sessionRangeDefault();
+    state.liveFast = false;
+    scheduleRender({ sliders: true, view: true });
+  };
+  if ($("btn-prev-curve")) $("btn-prev-curve").onclick = () => setViewingPrev(true);
+  if ($("btn-curr-curve")) $("btn-curr-curve").onclick = () => setViewingPrev(false);
   const syncTargetPct = () => {
     const v = Number($("target-px").value);
     const spot = spotNow();
@@ -1703,7 +1982,14 @@ function bind() {
 async function bootFromUrl(isPop) {
   const decoded = decodeState(location.search, location.pathname);
   state.template = decoded.template || "iron-condor";
-  if (decoded.range > 0) state.range = decoded.range;
+  state.prev = null;
+  state.viewingPrev = false;
+  if (decoded.rangeFromUrl && decoded.range > 0) {
+    state.range = clamp(decoded.range, RANGE_MIN, RANGE_MAX);
+    state.rangeFromUrl = true;
+  } else {
+    state.rangeFromUrl = false;
+  }
   if (decoded.ivMult > 0) state.ivMult = decoded.ivMult;
   if (decoded.display) state.mode = decoded.display;
   const need = new Set();
@@ -1723,6 +2009,7 @@ async function bootFromUrl(isPop) {
     return;
   }
   state.dateMs = Date.now();
+  if (!state.rangeFromUrl) state.range = sessionRangeDefault();
   if (state.activeExpiry) state.month = state.activeExpiry.slice(0, 7);
   if (!isPop) pushUrl(true);
   renderAll();
@@ -1735,6 +2022,7 @@ window.__builder = {
 window.__lastRenderMs = 0;
 
 async function start() {
+  state.booting = true;
   bind();
   setLoading(true);
   try {
@@ -1745,8 +2033,10 @@ async function start() {
     await loadBase();
     renderQuote();
     await bootFromUrl(false);
+    state.booting = false;
     setLoading(false);
   } catch (err) {
+    state.booting = false;
     const text = "Could not load delayed QQQ quotes. " + (err && err.message ? err.message : "Try again shortly.");
     setLoading(false, text);
     toast(text);

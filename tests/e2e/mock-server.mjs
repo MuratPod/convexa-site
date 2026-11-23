@@ -16,9 +16,16 @@ const HOST = process.env.HOST || "127.0.0.1";
 
 const chain = JSON.parse(fs.readFileSync(FIXTURE, "utf8"));
 const have = new Set((chain.options || []).map((o) => o.expiry));
-// Prefer expiries that actually have contracts so the default ~30d book is usable.
-chain.expirations = (chain.expirations || []).filter((e) => have.has(e));
-if (!chain.expirations.length) chain.expirations = [...have].sort();
+if (!chain.expirations || !chain.expirations.length) chain.expirations = [...have].sort();
+
+function optionsFor(expiry) {
+  const all = chain.options || [];
+  if (!expiry) return all;
+  const exact = all.filter((o) => o.expiry === expiry);
+  if (exact.length) return exact;
+  const srcExp = [...have].sort((a, b) => Math.abs(Date.parse(a) - Date.parse(expiry)) - Math.abs(Date.parse(b) - Date.parse(expiry)))[0];
+  return all.filter((o) => o.expiry === srcExp).map((o) => ({ ...o, expiry }));
+}
 
 const MIME = {
   ".html": "text/html; charset=utf-8",
@@ -69,7 +76,7 @@ function handleApi(url, res) {
     if (p === "/api/expirations") {
       return json(res, 200, { symbol: "QQQ", expirations: chain.expirations, source: "fixture" });
     }
-    const options = expiry ? (chain.options || []).filter((o) => o.expiry === expiry) : chain.options;
+    const options = optionsFor(expiry);
     return json(res, 200, { ...chain, delayed: true, options });
   }
   if (p === "/api/history") {

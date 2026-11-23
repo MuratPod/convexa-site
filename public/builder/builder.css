@@ -443,3 +443,29 @@ input[type="range"]::-moz-range-thumb {
 }
 
 .leg-chip .badge { display: inline-block; margin-left: 3px; font-size: 9px; font-weight: 800; opacity: 0.95; }
+
+/* addendum second pass */
+.date-row[hidden] { display: none !important; }
+.iv-ticks { position: relative; height: 14px; display: block; }
+.iv-ticks i { position: absolute; transform: translateX(-50%); white-space: nowrap; font-style: normal; }
+.iv-ticks i:first-child { transform: translateX(0); }
+.iv-ticks i:last-child { transform: translateX(-100%); }
+.pnl-table tr.spot-row th,
+.pnl-table tr.spot-row td { border-top: 1px dashed var(--gold); box-shadow: none; }
+.pnl-table th.hi-col,
+.pnl-table th.hi-row,
+.pnl-table tr.hi-row th { background: rgba(212, 175, 55, 0.16); color: var(--text); }
+.pnl-table td.hi-row.hi-col { outline: 1px solid var(--gold); outline-offset: -1px; background-blend-mode: multiply; }
+.pnl-table .month-row th { font-size: 10px; letter-spacing: 0.03em; text-transform: uppercase; font-weight: 700; }
+.pnl-table .day-num { font-variant-numeric: tabular-nums; }
+.pnl-table .dow { font-size: 9px; margin-left: 1px; color: var(--muted-2); font-weight: 600; }
+.qty-input { width: 72px; text-align: center; background: #0a101c; color: inherit; border: 1px solid #2a354c; border-radius: 6px; padding: 4px 6px; font: inherit; font-weight: 700; }
+.qty-input.is-bad { border-color: #e74c3c; color: #ffb3aa; }
+.prev-toggle { margin-left: auto; display: flex; gap: 8px; align-items: center; }
+.prev-toggle[hidden] { display: none !important; }
+.prev-toggle button {
+  background: #121a2c; color: var(--text); border: 1px solid #2a354c; border-radius: 999px;
+  padding: 6px 12px; font: inherit; font-size: 12px; font-weight: 650; cursor: pointer;
+}
+.prev-toggle button.is-on { border-color: var(--gold); color: var(--gold); }
+#pos-reset-px:disabled { opacity: 0.45; cursor: not-allowed; }

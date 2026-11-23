@@ -87,6 +87,12 @@ async function runOnPage(page, engine, viewport) {
     `chips=${chips} price=${price} title=${title}`);
   await page.screenshot({ path: path.join(SHOTS, `${tag}-01-ready.png`), fullPage: true });
 
+  const dateStart = (await page.locator("#date-label").innerText()).trim();
+  const rangeStart = (await page.locator("#range-label").innerText()).trim();
+  mark("fresh load: DATE is Now and Range is the DTE default",
+    /^Now$/i.test(dateStart) && /^±(12|14)%$/.test(rangeStart),
+    `date=${dateStart} range=${rangeStart}`);
+
   // --- DATE slider ---
   const dateMax = Number(await page.locator("#date-slider").getAttribute("max"));
   const dateDisabled = await page.locator("#date-slider").isDisabled();
@@ -112,26 +118,31 @@ async function runOnPage(page, engine, viewport) {
       `before=${stats0["Max profit"]} after=${stats1["Max profit"]}`);
     await page.screenshot({ path: path.join(SHOTS, `${tag}-02-date.png`), fullPage: true });
 
-    // Table column focus
+    // Table: date slider hidden, 21 rows, columns independent of DATE, click is inert
+    const dateLabelBeforeTable = (await page.locator("#date-label").innerText()).trim();
     await page.locator('[data-view="table"]').click();
     await nextFrames(page, 3);
-    const focus0 = await page.locator("th.date-focus").innerText().catch(() => "");
-    await setSlider(page, "date-slider", 0);
-    await nextFrames(page, 4);
-    const focus1 = await page.locator("th.date-focus").innerText().catch(() => "");
-    const nFocus = await page.locator("th.date-focus").count();
-    mark("DATE drag: table selected-date column is highlighted and moves",
-      nFocus === 1 && focus0 !== "" && focus1 !== "" && focus0 !== focus1,
-      `focus ${focus0} -> ${focus1}`);
+    const dateRowHidden = await page.locator("#date-row").isHidden();
+    const tableRows0 = await page.locator("#table-wrap tbody tr").count();
+    const tableCols = await page.locator("#table-wrap thead tr:last-child th").count();
+    const firstCell = page.locator("#table-wrap tbody td").nth(3);
+    await firstCell.hover();
+    await nextFrames(page, 2);
+    const hi = await page.evaluate(() => ({
+      row: document.querySelectorAll("#table-wrap .hi-row").length,
+      col: document.querySelectorAll("#table-wrap .hi-col").length,
+    }));
+    await firstCell.click();
+    await nextFrames(page, 2);
+    const targetOpen = await page.locator("#target-modal").isVisible().catch(() => false);
+    const dateStillHidden = await page.locator("#date-row").isHidden();
+    mark("Table: 21 rows, <=21 date columns, DATE slider hidden, hover highlights, click does nothing",
+      dateRowHidden && tableRows0 === 21 && tableCols >= 3 && tableCols <= 22 && hi.row > 0 && hi.col > 0 && !targetOpen && dateStillHidden,
+      `hidden=${dateRowHidden} rows=${tableRows0} cols=${tableCols} hi=${JSON.stringify(hi)} target=${targetOpen}`);
     await page.screenshot({ path: path.join(SHOTS, `${tag}-03-table-date.png`), fullPage: true });
     await page.locator('[data-view="graph"]').click();
     await nextFrames(page, 2);
-    // reset date to expiry for later tests
-    await setSlider(page, "date-slider", dateMax);
-    await page.evaluate(() => {
-      document.getElementById("date-slider").dispatchEvent(new Event("change", { bubbles: true }));
-    });
-    await nextFrames(page, 3);
+    // leave DATE off expiry (already mid) so later IV tests reprice the focus curve
   }
 
   // --- RANGE slider ---
@@ -153,6 +164,12 @@ async function runOnPage(page, engine, viewport) {
   mark("RANGE drag: label and x-axis rescale live",
     /±49%/.test(rangeLabel) && span49 > span12 * 1.5,
     `label=${rangeLabel} x-span ${span12} -> ${span49}`);
+  await setSlider(page, "range-slider", 98);
+  await nextFrames(page, 3);
+  const range98 = await page.locator("#range-label").innerText();
+  mark("RANGE accepts the addendum max of ±98%",
+    /±98%/.test(range98),
+    `label=${range98}`);
   await setSlider(page, "range-slider", 44);
   await page.locator('[data-view="table"]').click();
   await nextFrames(page, 3);
@@ -185,15 +202,18 @@ async function runOnPage(page, engine, viewport) {
   const path1 = await page.locator('#graph-wrap svg path[stroke="#f4f6fb"], #graph-wrap svg path[stroke="#d4af37"]').last().getAttribute("d");
   const copChanged = statsIv0["Chance of profit"] !== statsIv1["Chance of profit"];
   const pathChanged = path0 && path1 && path0 !== path1;
+  const ivNum = (s) => Number(String(s).replace(/[^0-9.]/g, ""));
+  const iv0n = ivNum(ivLabel0);
+  const iv1n = ivNum(ivLabel);
   mark("IV drag: label shows doubled IV, reset appears, curves/COP reprice",
-    /87/.test(ivLabel) && resetHidden0 && !resetHidden1 && (copChanged || pathChanged),
+    iv0n > 0 && Math.abs(iv1n / iv0n - 2) < 0.15 && resetHidden0 && !resetHidden1 && (copChanged || pathChanged),
     `label ${ivLabel0.replace(/\s+/g, " ")} -> ${ivLabel.replace(/\s+/g, " ")} COP ${statsIv0["Chance of profit"]} -> ${statsIv1["Chance of profit"]} pathChanged=${pathChanged}`);
   await page.screenshot({ path: path.join(SHOTS, `${tag}-05-iv.png`), fullPage: true });
   await page.locator("#iv-reset").click();
   await nextFrames(page, 3);
 
   // --- Strike chip drag (live, mid-gesture) ---
-  const chip = page.locator(".leg-chip").first();
+  const chip = page.locator(".leg-chip.short").first();
   const box = await chip.boundingBox();
   if (!box) {
     mark("strike chip drag: chip is visible", false);
@@ -209,7 +229,7 @@ async function runOnPage(page, engine, viewport) {
     const statsDrag0 = await readStats(page);
     await page.mouse.move(boxLive.x + boxLive.width / 2, boxLive.y + boxLive.height / 2);
     await page.mouse.down();
-    await page.mouse.move(boxLive.x + boxLive.width / 2 + 90, boxLive.y + boxLive.height / 2, { steps: 10 });
+    await page.mouse.move(boxLive.x + boxLive.width / 2 + 180, boxLive.y + boxLive.height / 2, { steps: 12 });
     await nextFrames(page, 4);
     const midText = (await chip.innerText()).trim();
     const midTitle = await page.title();
@@ -262,12 +282,34 @@ async function runOnPage(page, engine, viewport) {
     await page.waitForSelector("#leg-pop:not([hidden]) #qty-inc");
     await page.locator("#qty-inc").click();
     await nextFrames(page, 4);
-    const qty = await page.locator("#qty-val").innerText();
+    const qty = await page.locator("#qty-val").inputValue();
     const popOpen = await page.locator("#leg-pop").isVisible();
     const debit1 = (await readStats(page))["Debit"] || (await readStats(page))["Credit"];
+    const urlQty = page.url();
     mark("Positions qty stepper updates stats live without closing the popover",
-      popOpen && Number(qty) >= 2 && debit0 !== debit1,
-      `qty=${qty} ${debit0} -> ${debit1}`);
+      popOpen && Number(qty) >= 2 && debit0 !== debit1 && /x2/.test(urlQty),
+      `qty=${qty} ${debit0} -> ${debit1} url=${urlQty}`);
+    // skip 0: type 1 then decrement to -1
+    await page.locator("#qty-val").fill("1");
+    await page.locator("#qty-val").press("Enter");
+    await nextFrames(page, 2);
+    await page.locator("#qty-dec").click();
+    await nextFrames(page, 3);
+    const flipped = await page.locator("#qty-val").inputValue();
+    const closeLbl = await page.locator("#pop-close-leg").innerText();
+    mark("Qty stepper skips 0 and flips Buy/Sell to Close",
+      Number(flipped) === -1 && /Buy to Close/i.test(closeLbl),
+      `qty=${flipped} close=${closeLbl}`);
+    await page.locator("#qty-val").fill("5000");
+    await page.locator("#qty-val").press("Enter");
+    await nextFrames(page, 2);
+    const rejected = await page.evaluate(() => {
+      const el = document.getElementById("qty-val");
+      return { value: el.value, bad: el.classList.contains("is-bad") };
+    });
+    mark("Qty over 4999 shows a red border and reverts",
+      Number(rejected.value) === -1 && (rejected.bad || Number(rejected.value) !== 5000),
+      JSON.stringify(rejected));
     await page.screenshot({ path: path.join(SHOTS, `${tag}-07-qty.png`), fullPage: true });
     await page.keyboard.press("Escape");
     await page.locator("#pos-close").click().catch(() => {});
@@ -295,6 +337,63 @@ async function runOnPage(page, engine, viewport) {
       `chips=${n} h1=${h1} reloads=${reloads} url=${url}`);
   } else {
     mark("Build menu template switch updates legs and URL without a reload", false, "Long Call not found");
+  }
+
+  // --- Expiry change keeps remaining, Range, and offers Previous ---
+  await setSlider(page, "range-slider", 49);
+  await nextFrames(page, 2);
+  // Move DATE a few days off Now so remaining is measurable.
+  const stopsMax = Number(await page.locator("#date-slider").getAttribute("max"));
+  if (stopsMax > 6) await setSlider(page, "date-slider", 6);
+  await nextFrames(page, 3);
+  const remBefore = (await page.locator("#date-right").innerText()).trim();
+  const dateBefore = (await page.locator("#date-label").innerText()).trim();
+  const expBtns = page.locator("#expiry-strip .day-row button, #expiry-strip button[data-exp], #expiry-strip button");
+  const expCount = await expBtns.count();
+  if (expCount >= 2) {
+    // click a later day that isn't already selected
+    let clicked = "";
+    const picked = await page.evaluate(() => {
+      const months = [...document.querySelectorAll("#expiry-strip .month-btn")];
+      const on = months.findIndex((m) => m.classList.contains("is-on"));
+      const laterMonth = months.slice(on + 1)[0] || months[months.length - 1];
+      if (laterMonth && !laterMonth.classList.contains("is-on")) laterMonth.click();
+      return laterMonth ? laterMonth.textContent.trim() : "";
+    });
+    await nextFrames(page, 4);
+    const laterDay = page.locator("#expiry-strip .day-chip").last();
+    if (await laterDay.count()) {
+      clicked = `${picked} ${(await laterDay.innerText()).trim()}`;
+      await laterDay.click();
+    }
+    await page.waitForTimeout(1000);
+    await nextFrames(page, 5);
+    const remAfter = (await page.locator("#date-right").innerText()).trim();
+    const dateAfter = (await page.locator("#date-label").innerText()).trim();
+    const rangeAfter = (await page.locator("#range-label").innerText()).trim();
+    const prevVis = await page.locator("#prev-toggle").isVisible();
+    mark("Expiry change keeps days-remaining and Range, does not reset DATE to Now",
+      /49%/.test(rangeAfter) && !/^Now$/i.test(dateAfter) && remAfter.length > 0,
+      `clicked=${clicked} date ${dateBefore} -> ${dateAfter} rem ${remBefore} -> ${remAfter} range=${rangeAfter}`);
+    mark("Previous / Current buttons appear after a leg or expiry change",
+      prevVis,
+      `visible=${prevVis}`);
+    if (prevVis) {
+      await page.locator("#btn-prev-curve").click();
+      await nextFrames(page, 3);
+      const prevOn = await page.locator("#btn-prev-curve").evaluate((el) => el.classList.contains("is-on"));
+      const prevPath = await page.locator('#graph-wrap svg path[data-series="previous"]').count();
+      await page.locator("#btn-curr-curve").click();
+      await nextFrames(page, 2);
+      const currOn = await page.locator("#btn-curr-curve").evaluate((el) => el.classList.contains("is-on"));
+      mark("Previous toggle shows the earlier curve and Current returns",
+        prevOn && currOn && prevPath >= 0,
+        `prevOn=${prevOn} currOn=${currOn} overlay=${prevPath}`);
+    }
+    await page.screenshot({ path: path.join(SHOTS, `${tag}-08-previous.png`), fullPage: true });
+  } else {
+    mark("Expiry change keeps days-remaining and Range, does not reset DATE to Now", false, "no other expiry");
+    mark("Previous / Current buttons appear after a leg or expiry change", false, "no other expiry");
   }
 
   // --- Perf: date-slider input bursts ---
