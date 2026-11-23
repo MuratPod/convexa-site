@@ -113,3 +113,24 @@ describe("templates", () => {
     assert.equal(legs.length, 0);
   });
 });
+
+describe("custom prices in the path", () => {
+  it("encodes a custom price with @ and the custom slug", () => {
+    const path = encodePath({
+      template: "custom",
+      symbol: "QQQ",
+      legs: [
+        { side: "buy", qty: 1, type: "C", expiry: "2026-12-24", strike: 610, kind: "option", customPrice: 10 },
+      ],
+    });
+    assert.equal(path, "/builder/custom/QQQ/.QQQ261224C610@10");
+  });
+
+  it("parses @price back onto the entry", () => {
+    const p = parseBuilderPath("/builder/custom/QQQ/.QQQ261224C610@10");
+    assert.equal(p.template, "custom");
+    assert.equal(p.entries.length, 1);
+    assert.equal(p.entries[0].strike, 610);
+    assert.equal(p.entries[0].customPrice, 10);
+  });
+});

@@ -733,10 +733,12 @@ export function encodePath({ template, symbol, legs }) {
     const short = l.side === "sell";
     const qty = Number(l.qty) || 1;
     const qtyBit = qty !== 1 && !(l.kind === "stock" && qty === 100) ? String(qty) : "";
+    const rawPx = l.customPrice;
+    const px = rawPx != null && rawPx !== "" && Number.isFinite(Number(rawPx)) ? `@${Number(rawPx)}` : "";
     if (l.kind === "stock" || l.type === "S") {
-      return `${short ? "-" : ""}${qtyBit}.${sym}`;
+      return `${short ? "-" : ""}${qtyBit}.${sym}${px}`;
     }
-    return `${short ? "-" : ""}${qtyBit}.${formatOcc(l.symbol || sym, l.expiry, l.type, l.strike)}`;
+    return `${short ? "-" : ""}${qtyBit}.${formatOcc(l.symbol || sym, l.expiry, l.type, l.strike)}${px}`;
   });
   const tail = parts.join(",");
   return tail ? `/builder/${slug}/${sym}/${tail}` : `/builder/${slug}/${sym}`;
@@ -774,7 +776,14 @@ export function parseBuilderPath(pathname) {
     const mm = p.match(/^(-)?(\d+)?\.(.+)$/);
     if (!mm) continue;
     const side = mm[1] ? "sell" : "buy";
-    const token = mm[3];
+    let token = mm[3];
+    let customPrice = null;
+    const at = token.lastIndexOf("@");
+    if (at >= 0) {
+      const n = Number(token.slice(at + 1));
+      if (Number.isFinite(n)) customPrice = n;
+      token = token.slice(0, at);
+    }
     const occ = parseOcc(token);
     if (occ) {
       entries.push({
@@ -785,6 +794,7 @@ export function parseBuilderPath(pathname) {
         strike: occ.strike,
         expiry: occ.expiry,
         symbol: occ.symbol,
+        customPrice,
       });
     } else {
       entries.push({
@@ -793,6 +803,7 @@ export function parseBuilderPath(pathname) {
         side,
         qty: mm[2] ? Number(mm[2]) : 100,
         symbol: String(token).toUpperCase(),
+        customPrice,
       });
     }
   }
