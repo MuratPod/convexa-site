@@ -16,7 +16,11 @@
   <link rel="icon" href="/favicon.ico" sizes="any">
   <link rel="icon" href="/assets/favicon.png" type="image/png" sizes="64x64">
   <link rel="apple-touch-icon" href="/assets/favicon.png">
-  <link rel="stylesheet" href="/builder/builder.css?v=c02a7463c8">
+  <link rel="stylesheet" href="/builder/builder.css?v=64c4055157">
+  <link rel="modulepreload" href="/builder/layout.js?v=e42fc52f4a">
+  <link rel="modulepreload" href="/builder/pricing.js?v=afa225739d">
+  <link rel="modulepreload" href="/builder/strategies.js?v=333280b659">
+  <link rel="modulepreload" href="/builder/data.js?v=1a06c38cee">
 </head>
 <body>
   <div id="notice-bar" class="notice-bar" hidden>
@@ -44,8 +48,20 @@
   </header>
 
   <main class="page" id="page">
-    <div class="title-row">
-      <h1 id="strategy-title">Iron Condor</h1>
+    <div class="lead">
+      <div class="title-cluster">
+        <h1 id="strategy-title">Iron Condor</h1>
+        <div class="ticker-row">
+          <div class="ticker-box" title="This public builder is limited to QQQ for now.">
+            <input id="ticker-input" type="text" value="QQQ" maxlength="3" readonly aria-label="Ticker, QQQ only">
+          </div>
+          <div class="ticker-px">
+            <strong id="last-price">—</strong>
+            <span class="chg" id="last-chg"></span>
+          </div>
+          <span class="delayed-tag" id="delayed-tag">Delayed</span>
+        </div>
+      </div>
       <div class="actions">
         <button type="button" class="btn-gold" id="btn-add">Add +</button>
         <button type="button" class="btn-gold" id="btn-positions">Positions (0)</button>
@@ -54,17 +70,6 @@
       </div>
     </div>
     <div class="add-menu" id="add-menu" hidden></div>
-
-    <div class="ticker-row">
-      <div class="ticker-box" title="This public builder is limited to QQQ for now.">
-        <input id="ticker-input" type="text" value="QQQ" maxlength="3" readonly aria-label="Ticker, QQQ only">
-      </div>
-      <div class="ticker-px">
-        <strong id="last-price">—</strong>
-        <span class="chg" id="last-chg"></span>
-      </div>
-      <span class="delayed-tag" id="delayed-tag">Delayed</span>
-    </div>
 
     <p class="expiry-label" id="expiry-label">Expiration</p>
     <div class="expiry-strip" id="expiry-strip"></div>
@@ -231,6 +236,6 @@
   </div>
 
   <div id="status" class="status" hidden></div>
-  <script type="module" src="/builder/app.js?v=891be05aed"></script>
+  <script type="module" src="/builder/app.js?v=8303c11e94"></script>
 </body>
 </html>

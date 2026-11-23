@@ -20,7 +20,7 @@ import {
   clamp,
   normPdf,
   normCdf,
-} from "./pricing.js";
+} from "./pricing.js?v=afa225739d";
 import {
   CATALOG,
   LEVELS,
@@ -36,8 +36,8 @@ import {
   decodeState,
   parseOcc,
   formatOcc,
-} from "./strategies.js";
-import { provider, BUILDER_SYMBOL } from "./data.js";
+} from "./strategies.js?v=333280b659";
+import { provider, BUILDER_SYMBOL } from "./data.js?v=1a06c38cee";
 import {
   RANGE_MIN,
   RANGE_MAX,
@@ -54,7 +54,7 @@ import {
   rulerWindow,
   signedStep,
   parseSignedQty,
-} from "./layout.js";
+} from "./layout.js?v=e42fc52f4a";
 
 const SYMBOL = BUILDER_SYMBOL;
 const SAVE_KEY = "convexa-builder-saved-v2";
@@ -495,22 +495,42 @@ async function loadBase() {
   return data;
 }
 
+function mergeChainPack(exp, pack, { updateQuote } = {}) {
+  if (!pack || !pack.options || !exp) return false;
+  state.chain.options = state.chain.options.filter((o) => o.expiry !== exp).concat(pack.options);
+  state.loaded.add(exp);
+  if (updateQuote && pack.price) {
+    state.quote = { ...state.quote, ...pack, options: undefined, expirations: state.chain.expirations };
+    state.chain.price = pack.price;
+  }
+  return true;
+}
+
 async function ensureExpiries(exps) {
   const want = [...new Set((exps || []).filter(Boolean))];
   const missing = want.filter((e) => !state.loaded.has(e));
   if (!missing.length) return;
   const packs = await Promise.all(missing.map((e) => provider.chain(SYMBOL, e).catch(() => null)));
-  for (let i = 0; i < missing.length; i++) {
-    const pack = packs[i];
-    if (!pack || !pack.options) continue;
-    const exp = missing[i];
-    state.chain.options = state.chain.options.filter((o) => o.expiry !== exp).concat(pack.options);
-    state.loaded.add(exp);
-    if (pack.price) {
-      state.quote = { ...state.quote, ...pack, options: undefined, expirations: state.chain.expirations };
-      state.chain.price = pack.price;
-    }
-  }
+  for (let i = 0; i < missing.length; i++) mergeChainPack(missing[i], packs[i], { updateQuote: true });
+}
+
+function prefetchExpiries() {
+  const all = (state.chain && state.chain.expirations) || [];
+  const today = new Date().toISOString().slice(0, 10);
+  const missing = all.filter((e) => e >= today && !state.loaded.has(e));
+  if (!missing.length) return;
+  let i = 0;
+  const run = () => {
+    if (i >= missing.length) return;
+    const batch = missing.slice(i, i + 2);
+    i += 2;
+    Promise.all(batch.map((e) => provider.chain(SYMBOL, e).catch(() => null))).then((packs) => {
+      packs.forEach((pack, idx) => mergeChainPack(batch[idx], pack, { updateQuote: false }));
+      setTimeout(run, 300);
+    });
+  };
+  if (typeof requestIdleCallback === "function") requestIdleCallback(() => run(), { timeout: 2500 });
+  else setTimeout(run, 600);
 }
 
 function selectedTime() {
@@ -826,11 +846,13 @@ async function onPickExpiry(iso) {
   renderAll();
 }
 
-function renderStrikeStrip() {
+function renderStrikeStrip(flags) {
   const host = $("strike-strip");
   const spot = spotNow();
   const w = host.clientWidth || 734;
   const h = host.clientHeight || 118;
+  if (flags && flags.fromResize && state._strikeWH && state._strikeWH[0] === w && state._strikeWH[1] === h) return;
+  state._strikeWH = [w, h];
   const { lo, hi } = rulerWindow(spot, currentDte());
   const padX = 36;
   const xOf = (k) => padX + ((k - lo) / (hi - lo)) * (w - 2 * padX);
@@ -854,9 +876,13 @@ function renderStrikeStrip() {
     for (const k of all) if (k >= lo && k <= hi) { byK.set(k, { strike: k, call: 0, put: 0 }); strikes.push(k); }
   }
 
-  host.innerHTML = `<canvas class="strike-canvas" width="${Math.round(w)}" height="${Math.round(h)}"></canvas>`;
+  const dpr = Math.min(window.devicePixelRatio || 1, 3);
+  host.innerHTML = `<canvas class="strike-canvas" width="${Math.round(w * dpr)}" height="${Math.round(h * dpr)}"></canvas>`;
   const cv = host.querySelector("canvas");
+  cv.style.width = `${w}px`;
+  cv.style.height = `${h}px`;
   const ctx = cv.getContext("2d");
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   ctx.clearRect(0, 0, w, h);
   const midY = h / 2;
   ctx.strokeStyle = "#243049";
@@ -1019,12 +1045,15 @@ function priceGrid(spot, range, n = 49) {
   return xs;
 }
 
-function renderGraph(a) {
+function renderGraph(a, opts) {
   const svg = $("pnl-chart");
   const wrap = $("graph-wrap");
   $("graph-wrap").hidden = false;
   $("table-wrap").hidden = true;
-  const W = 760, H = 270;
+  const W = Math.max(280, Math.round(wrap.clientWidth || wrap.parentElement?.clientWidth || 760));
+  const H = Math.max(180, Math.round(wrap.clientHeight || 270));
+  if (opts && opts.fromResize && state._graphWH && state._graphWH[0] === W && state._graphWH[1] === H) return;
+  state._graphWH = [W, H];
   const pad = { l: 58, r: 16, t: 16, b: 28 };
   const spot = a.spot;
   const now = a.now;
@@ -1158,6 +1187,9 @@ function renderGraph(a) {
         : "";
     }
   } else {
+  svg.setAttribute("width", String(W));
+  svg.setAttribute("height", String(H));
+  svg.setAttribute("preserveAspectRatio", "xMidYMid meet");
   svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
   svg.innerHTML = `
     <defs>
@@ -1994,12 +2026,25 @@ function bind() {
     }
   });
   window.addEventListener("popstate", () => bootFromUrl(true));
-  window.addEventListener("resize", () => {
-    if (state.quote) {
-      renderStrikeStrip();
-      if (state.view !== "table") renderGraph(analytics());
-    }
-  });
+  let resizeRaf = 0;
+  const onWinResize = () => {
+    if (state.liveFast || state.chipDrag) return;
+    if (resizeRaf) return;
+    resizeRaf = requestAnimationFrame(() => {
+      resizeRaf = 0;
+      if (!state.quote) return;
+      renderStrikeStrip({ fromResize: true });
+      if (state.view === "table") renderTable(analytics());
+      else renderGraph(analytics(), { fromResize: true });
+    });
+  };
+  window.addEventListener("resize", onWinResize);
+  if (typeof ResizeObserver === "function") {
+    const ro = new ResizeObserver(onWinResize);
+    if ($("graph-wrap")) ro.observe($("graph-wrap"));
+    if ($("strike-strip")) ro.observe($("strike-strip"));
+    if ($("view-panel")) ro.observe($("view-panel"));
+  }
   $("ticker-input").addEventListener("keydown", (e) => e.preventDefault());
 }
 
@@ -2059,6 +2104,7 @@ async function start() {
     await bootFromUrl(false);
     state.booting = false;
     setLoading(false);
+    prefetchExpiries();
   } catch (err) {
     state.booting = false;
     const text = "Could not load delayed QQQ quotes. " + (err && err.message ? err.message : "Try again shortly.");
