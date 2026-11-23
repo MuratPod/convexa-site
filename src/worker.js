@@ -696,24 +696,23 @@ export default {
       return response;
     }
 
-    // Optional deploy-time override so a Worker-only publish can ship a new
-    // /builder/app.js without a full assets upload.
-    if (url.pathname === "/builder/app.js" && typeof globalThis.BUILDER_APP_JS === "string") {
-      return new Response(globalThis.BUILDER_APP_JS, {
-        status: 200,
-        headers: {
-          "content-type": "application/javascript; charset=utf-8",
-          "cache-control": "public, max-age=60",
-        },
-      });
-    }
-
     // Directory URL /builder → /builder/
     if (url.pathname === "/builder") {
       const redir = new URL(request.url);
       redir.pathname = "/builder/";
       if (url.search) redir.search = url.search;
       return Response.redirect(redir.toString(), 301);
+    }
+
+    // SPA routes: /builder/<strategy>/<TICKER>/... serve the builder page.
+    if (url.pathname.startsWith("/builder/") && env.ASSETS) {
+      const file = url.pathname.match(/^\/builder\/[^/]+\.(js|css|map|svg|png|webp|ico)$/);
+      if (!file) {
+        // Asset binder 307s /builder/index.html → /builder/. Fetch the
+        // directory URL so SPA routes do not bounce back into this worker.
+        const page = new URL("/builder/", url.origin);
+        return env.ASSETS.fetch(new Request(page.toString(), request));
+      }
     }
 
     if (env.ASSETS) return env.ASSETS.fetch(request);
@@ -731,10 +730,11 @@ async function handleApi(url) {
   if (path === "/api/quote" || path === "/api/chain" || path === "/api/expirations") {
     const sym = cleanSymbol(url.searchParams.get("symbol") || url.searchParams.get("s"));
     if (!sym) return fail(400, "Pass a ticker in ?symbol=");
+    if (sym !== "QQQ") return fail(400, "This public builder is limited to QQQ for now.");
     const expiry = url.searchParams.get("expiry") || url.searchParams.get("expiration") || null;
     if (expiry && !/^\d{4}-\d{2}-\d{2}$/.test(expiry)) return fail(400, "expiry must be YYYY-MM-DD");
     const data = await loadChain(sym, path === "/api/quote" || path === "/api/expirations" ? null : expiry);
-    if (!data || !data.price) return fail(404, `No delayed chain for ${sym}. Try a US-listed ticker such as QQQ or AAPL.`);
+    if (!data || !data.price) return fail(404, `No delayed chain for ${sym}. This public builder is limited to QQQ for now.`);
     if (path === "/api/quote") {
       return ok({
         symbol: data.symbol,
@@ -775,5 +775,119 @@ async function handleApi(url) {
     });
   }
 
+  if (path === "/api/search") {
+    const q = String(url.searchParams.get("q") || url.searchParams.get("query") || "").trim().toUpperCase();
+    const hit = { symbol: "QQQ", name: "Invesco QQQ Trust, Series 1" };
+    const results = !q || "QQQ".startsWith(q) || "INVESCO QQQ TRUST".includes(q) ? [hit] : [];
+    return ok({ query: q, results, delayed: true, source: "qqq-only" });
+  }
+
+  if (path === "/api/history") {
+    const sym = cleanSymbol(url.searchParams.get("symbol") || url.searchParams.get("s"));
+    if (!sym) return fail(400, "Pass a ticker in ?symbol=");
+    if (sym !== "QQQ") return fail(400, "This public builder is limited to QQQ for now.");
+    const range = String(url.searchParams.get("range") || "5d");
+    const allowed = new Set(["1d", "5d", "10d", "1mo", "3mo", "6mo", "1y", "2y", "5y", "max"]);
+    const r = allowed.has(range) ? range : "5d";
+    const interval = r === "1d" ? "5m" : (r === "5d" || r === "10d" ? "15m" : "1d");
+    const data = await yahooHistory(sym, r, interval);
+    if (!data) return fail(404, `No history for ${sym}.`);
+    return ok(data);
+  }
+
   return fail(404, "Unknown API route.");
 }
+
+const FALLBACK_TICKERS = [
+  ["QQQ", "Invesco QQQ Trust"],
+  ["SPY", "SPDR S&P 500 ETF"],
+  ["IWM", "iShares Russell 2000 ETF"],
+  ["DIA", "SPDR Dow Jones Industrial Average"],
+  ["AAPL", "Apple Inc."],
+  ["MSFT", "Microsoft Corporation"],
+  ["NVDA", "NVIDIA Corporation"],
+  ["AMZN", "Amazon.com Inc."],
+  ["GOOGL", "Alphabet Inc. Class A"],
+  ["META", "Meta Platforms Inc."],
+  ["TSLA", "Tesla Inc."],
+  ["AMD", "Advanced Micro Devices"],
+  ["NFLX", "Netflix Inc."],
+  ["AVGO", "Broadcom Inc."],
+  ["COST", "Costco Wholesale"],
+  ["TQQQ", "ProShares UltraPro QQQ"],
+  ["SQQQ", "ProShares UltraPro Short QQQ"],
+  ["QLD", "ProShares Ultra QQQ"],
+  ["PSQ", "ProShares Short QQQ"],
+  ["QID", "ProShares UltraShort QQQ"],
+];
+
+async function searchSymbols(query) {
+  const needle = query.toUpperCase();
+  const local = FALLBACK_TICKERS
+    .filter(([sym, name]) => sym.includes(needle) || name.toUpperCase().includes(needle))
+    .map(([symbol, name]) => ({ symbol, name }));
+  try {
+    const { res, text } = await fetchText(
+      `https://query1.finance.yahoo.com/v1/finance/search?q=${encodeURIComponent(query)}&quotesCount=12&newsCount=0&listsCount=0`,
+      { headers: { referer: "https://finance.yahoo.com/", origin: "https://finance.yahoo.com" } },
+      4000,
+    );
+    if (res.ok && text && !text.trim().startsWith("<")) {
+      const json = JSON.parse(text);
+      const quotes = (json && json.quotes) || [];
+      const seen = new Set();
+      const results = [];
+      for (const row of quotes) {
+        const symbol = String(row.symbol || "").toUpperCase();
+        if (!/^[A-Z][A-Z0-9.]{0,9}$/.test(symbol) || seen.has(symbol)) continue;
+        if (row.quoteType && !/equity|etf|index/i.test(String(row.quoteType))) continue;
+        seen.add(symbol);
+        results.push({ symbol, name: row.shortname || row.longname || symbol, type: row.quoteType || null });
+      }
+      for (const row of local) {
+        if (!seen.has(row.symbol)) results.push(row);
+      }
+      return results.slice(0, 12);
+    }
+  } catch (err) {
+    console.warn("search_fail", String(err && err.message ? err.message : err));
+  }
+  return local.slice(0, 10);
+}
+
+async function yahooHistory(sym, range, interval) {
+  const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(sym)}?interval=${encodeURIComponent(interval)}&range=${encodeURIComponent(range)}`;
+  try {
+    const { res, text } = await fetchText(url, {
+      headers: { referer: "https://finance.yahoo.com/", origin: "https://finance.yahoo.com" },
+    }, 8000);
+    if (!res.ok || !text || text.trim().startsWith("<")) return null;
+    const json = JSON.parse(text);
+    const result = json && json.chart && Array.isArray(json.chart.result) && json.chart.result[0];
+    if (!result) return null;
+    const ts = result.timestamp || [];
+    const quote = (result.indicators && result.indicators.quote && result.indicators.quote[0]) || {};
+    const closes = quote.close || [];
+    const points = [];
+    for (let i = 0; i < ts.length; i++) {
+      const px = Number(closes[i]);
+      if (!Number.isFinite(px)) continue;
+      points.push({ t: ts[i] * 1000, c: px });
+    }
+    if (!points.length) return null;
+    const meta = result.meta || {};
+    return {
+      symbol: meta.symbol || sym,
+      currency: meta.currency || "USD",
+      delayed: true,
+      source: "yahoo",
+      range,
+      interval,
+      points,
+    };
+  } catch (err) {
+    console.warn("history_fail", String(err && err.message ? err.message : err));
+    return null;
+  }
+}
+

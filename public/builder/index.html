@@ -3,14 +3,14 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Options strategy builder — Convexa</title>
-  <meta name="description" content="Build an options strategy, see net debit or credit, max profit and loss, breakevens, chance of profit, greeks, and a P&amp;L table. Delayed quotes, estimates for education — not investment advice.">
-  <meta name="theme-color" content="#070B14">
+  <title>QQQ strategy builder — Convexa</title>
+  <meta name="description" content="Build a QQQ options strategy and see debit or credit, max profit and loss, breakevens, chance of profit, greeks, and a P&amp;L graph or table. Delayed quotes, estimates for education — not investment advice.">
+  <meta name="theme-color" content="#050814">
   <link rel="canonical" href="https://convexa.today/builder/">
   <meta property="og:type" content="website">
   <meta property="og:url" content="https://convexa.today/builder/">
-  <meta property="og:title" content="Options strategy builder — Convexa">
-  <meta property="og:description" content="Greeks, P&amp;L table and payoff curves for any US ticker. Delayed quotes. Education only.">
+  <meta property="og:title" content="QQQ strategy builder — Convexa">
+  <meta property="og:description" content="Greeks, P&amp;L graph and table for QQQ options. Delayed quotes. Education only.">
   <meta property="og:image" content="https://convexa.today/assets/og.webp">
   <meta name="twitter:card" content="summary_large_image">
   <link rel="icon" href="/favicon.ico" sizes="any">
@@ -19,6 +19,11 @@
   <link rel="stylesheet" href="/builder/builder.css">
 </head>
 <body>
+  <div id="notice-bar" class="notice-bar" hidden>
+    <p>Quotes are delayed about 15 minutes. Figures are model estimates for education, not investment advice.</p>
+    <button type="button" class="icon-x" id="notice-close" aria-label="Dismiss notice">×</button>
+  </div>
+
   <header class="top">
     <div class="top-inner">
       <a class="logo" href="/">
@@ -26,134 +31,181 @@
         Convexa
       </a>
       <nav class="top-nav" aria-label="Site">
+        <div class="build-wrap" id="build-wrap">
+          <button type="button" class="nav-link build-btn" id="build-btn" aria-expanded="false" aria-haspopup="true" aria-controls="build-menu">Build</button>
+          <div class="build-menu" id="build-menu" hidden>
+            <div class="build-cols" id="build-cols"></div>
+            <div class="build-card" id="build-card"></div>
+          </div>
+        </div>
         <a href="/">Home</a>
-        <a href="/builder/" aria-current="page">Builder</a>
       </nav>
     </div>
   </header>
 
-  <main class="page">
-    <section class="hero-row">
-      <div>
-        <p class="eyebrow">Strategy builder</p>
-        <h1>See the trade before it moves.</h1>
+  <main class="page" id="page">
+    <div class="title-row">
+      <h1 id="strategy-title">Iron Condor</h1>
+      <div class="actions">
+        <button type="button" class="btn-gold" id="btn-add">Add +</button>
+        <button type="button" class="btn-gold" id="btn-positions">Positions (0)</button>
+        <button type="button" class="btn-gold" id="btn-save">Save Trade</button>
+        <button type="button" class="btn-gold" id="btn-history">Historical Chart</button>
       </div>
-      <form class="ticker" id="ticker-form" autocomplete="off">
-        <label class="sr-only" for="ticker-input">Ticker</label>
-        <input id="ticker-input" name="symbol" type="text" maxlength="10" spellcheck="false" placeholder="Ticker — QQQ, AAPL…" inputmode="latin" autocapitalize="characters">
-        <button type="submit" class="btn-gold" id="ticker-go">Load</button>
-      </form>
-    </section>
+    </div>
+    <div class="add-menu" id="add-menu" hidden></div>
 
-    <p class="quote-line" id="quote-line">
-      Enter a US-listed ticker to load a delayed option chain.
-    </p>
-
-    <section class="card templates-card" aria-labelledby="templates-h">
-      <div class="card-head">
-        <h2 id="templates-h">Strategy</h2>
-        <label class="expiry-label">
-          <span>Expiry</span>
-          <select id="expiry-select" disabled>
-            <option value="">—</option>
-          </select>
-        </label>
+    <div class="ticker-row">
+      <div class="ticker-box" title="This public builder is limited to QQQ for now.">
+        <input id="ticker-input" type="text" value="QQQ" maxlength="3" readonly aria-label="Ticker, QQQ only">
       </div>
-      <div class="template-pills" id="template-pills" role="list"></div>
-    </section>
+      <div class="ticker-px">
+        <strong id="last-price">—</strong>
+        <span class="chg" id="last-chg"></span>
+      </div>
+      <span class="delayed-tag" id="delayed-tag">Delayed</span>
+    </div>
 
-    <section class="summary" id="summary" aria-live="polite">
-      <article class="sum-card"><p class="sum-label">Net debit / credit</p><p class="sum-value" id="sum-premium">—</p><p class="sum-sub" id="sum-premium-sub"></p></article>
-      <article class="sum-card"><p class="sum-label">Max profit</p><p class="sum-value up" id="sum-maxp">—</p></article>
-      <article class="sum-card"><p class="sum-label">Max loss</p><p class="sum-value down" id="sum-maxl">—</p></article>
-      <article class="sum-card"><p class="sum-label">Breakevens</p><p class="sum-value" id="sum-be">—</p></article>
-      <article class="sum-card"><p class="sum-label">Chance of profit</p><p class="sum-value gold" id="sum-cop">—</p><p class="sum-sub">At expiry, risk-neutral</p></article>
-    </section>
+    <p class="expiry-label" id="expiry-label">Expiration</p>
+    <div class="expiry-strip" id="expiry-strip"></div>
 
-    <section class="greeks" id="greeks" aria-label="Net position greeks">
-      <div class="gk"><span>Delta</span><strong id="gk-delta">—</strong></div>
-      <div class="gk"><span>Gamma</span><strong id="gk-gamma">—</strong></div>
-      <div class="gk"><span>Theta / day</span><strong id="gk-theta">—</strong></div>
-      <div class="gk"><span>Vega / 1 vol</span><strong id="gk-vega">—</strong></div>
-      <div class="gk"><span>Rho / 1%</span><strong id="gk-rho">—</strong></div>
-    </section>
+    <p class="strikes-label" id="strikes-label">Strikes</p>
+    <div class="strike-strip" id="strike-strip"></div>
 
-    <section class="card chart-card">
-      <div class="card-head">
-        <h2>P&amp;L</h2>
-        <div class="seg" role="radiogroup" aria-label="Display mode">
-          <button type="button" class="seg-btn is-on" data-display="usd" aria-pressed="true">$</button>
-          <button type="button" class="seg-btn" data-display="pct" aria-pressed="false">%</button>
-          <button type="button" class="seg-btn" data-display="risk" aria-pressed="false">% risk</button>
+    <div class="stats-strip" id="stats-strip">
+      <button type="button" class="stats-arrow" id="stats-prev" aria-label="Previous stats">‹</button>
+      <div class="stats-cols" id="stats-cols"></div>
+      <button type="button" class="stats-arrow" id="stats-next" aria-label="Next stats">›</button>
+    </div>
+
+    <div class="view-panel" id="view-panel">
+      <div class="graph-wrap" id="graph-wrap">
+        <svg id="pnl-chart" viewBox="0 0 760 270" role="img" aria-label="Strategy value against QQQ price"></svg>
+        <div class="graph-hover" id="graph-hover" hidden></div>
+      </div>
+      <div class="table-wrap" id="table-wrap" hidden></div>
+    </div>
+
+    <div class="slider-row date-row">
+      <span class="slider-label">Date: <strong id="date-label">—</strong></span>
+      <span class="slider-right" id="date-right"></span>
+      <input type="range" id="date-slider" min="0" max="0" value="0" disabled>
+    </div>
+    <div class="slider-pair">
+      <label class="slider-block">
+        <span>Range: <strong id="range-label">±12%</strong></span>
+        <input type="range" id="range-slider" min="5" max="80" step="1" value="12">
+      </label>
+      <button type="button" class="reset-range" id="range-reset" title="Reset range" aria-label="Reset range">◎</button>
+      <label class="slider-block iv-block">
+        <span class="iv-head">
+          Implied volatility:
+          <strong id="iv-label">—</strong>
+          <button type="button" class="iv-reset" id="iv-reset" hidden title="Reset volatility" aria-label="Reset volatility">↺</button>
+          <span class="iv-dd" id="iv-dd" hidden>
+            <button type="button" id="iv-dd-btn">Average</button>
+            <div class="iv-dd-menu" id="iv-dd-menu" hidden></div>
+          </span>
+        </span>
+        <input type="range" id="iv-slider" min="100" max="300" step="1" value="100">
+        <span class="iv-ticks"><i>×1</i><i>×2</i><i>×3</i></span>
+      </label>
+    </div>
+
+    <div class="toggles">
+      <div class="seg" role="radiogroup" aria-label="View">
+        <button type="button" class="seg-btn" data-view="table">Table</button>
+        <button type="button" class="seg-btn is-on" data-view="graph">Graph</button>
+      </div>
+      <div class="seg mode-seg" role="radiogroup" aria-label="Display">
+        <button type="button" class="seg-btn is-on" data-mode="usd">Profit / Loss $</button>
+        <button type="button" class="seg-btn" data-mode="pct">Profit / Loss %</button>
+        <button type="button" class="seg-btn" data-mode="value">Contract Value</button>
+        <button type="button" class="seg-btn mode-risk" data-mode="risk">% of Max Risk</button>
+        <button type="button" class="seg-btn more-btn" id="more-btn" data-mode="more">More</button>
+        <div class="more-menu" id="more-menu" hidden>
+          <button type="button" data-greek="delta">Delta Δ</button>
+          <button type="button" data-greek="theta">Theta Θ</button>
+          <button type="button" data-greek="gamma">Gamma Γ</button>
+          <button type="button" data-greek="vega">Vega ν</button>
+          <button type="button" data-greek="rho">Rho ρ</button>
         </div>
       </div>
-      <div class="chart-wrap">
-        <svg id="pnl-chart" viewBox="0 0 800 340" role="img" aria-label="P&amp;L against underlying price"></svg>
-        <div class="chart-legend" id="chart-legend">
-          <span><i class="swatch today"></i> Today</span>
-          <span><i class="swatch selected"></i> Selected date</span>
-          <span><i class="swatch expiry"></i> Expiry</span>
-        </div>
-      </div>
-      <div class="sliders">
-        <label>
-          <span>Date <strong id="date-label">Today</strong></span>
-          <input type="range" id="date-slider" min="0" max="0" value="0" disabled>
-        </label>
-        <label>
-          <span>IV shift <strong id="iv-label">0 vol pts</strong></span>
-          <input type="range" id="iv-slider" min="-20" max="20" step="0.5" value="0">
-        </label>
-        <label>
-          <span>Price range <strong id="range-label">±15%</strong></span>
-          <input type="range" id="range-slider" min="5" max="50" step="1" value="15">
-        </label>
-      </div>
-    </section>
+    </div>
+  </main>
 
-    <section class="card table-card">
-      <div class="card-head">
-        <h2>P&amp;L table</h2>
-        <p class="card-note">Rows are underlying prices; columns are dates through expiry. ±1 / 3 / 5% are always included.</p>
-      </div>
-      <div class="table-scroll" id="pnl-table-wrap">
-        <p class="empty-hint">Load a ticker and pick a strategy to fill the table.</p>
-      </div>
-    </section>
-
-    <section class="card legs-card">
-      <div class="card-head">
-        <h2>Legs</h2>
-        <button type="button" class="btn-ghost" id="add-leg">Add leg</button>
-      </div>
-      <div id="legs-list" class="legs-list">
-        <p class="empty-hint">No legs yet.</p>
-      </div>
-    </section>
-
-    <section class="card chain-card">
-      <div class="card-head">
-        <h2>Option chain</h2>
-        <p class="card-note" id="chain-note">Delayed mid, bid / ask, implied vol, open interest.</p>
-      </div>
-      <div class="table-scroll" id="chain-wrap">
-        <p class="empty-hint">The chain appears after you load a ticker.</p>
-      </div>
-    </section>
-
-    <footer class="disclaimer">
-      <p>
-        Quotes are delayed (typically about 15 minutes) and come from public exchange pages, not a licensed real-time feed.
+  <footer class="foot">
+    <div class="foot-inner">
+      <a class="logo foot-logo" href="/"><span class="logo-mark" aria-hidden="true">C</span> Convexa</a>
+      <nav>
+        <a href="/builder/">Strategy Builder</a>
+        <a href="/">Home</a>
+      </nav>
+      <p class="disclaimer">
+        This builder is limited to QQQ. Quotes are delayed (typically about 15 minutes) and come from public exchange pages, not a licensed real-time feed.
         Prices, implied volatilities, greeks, probabilities and P&amp;L figures are model estimates for education only.
         They are not investment advice, a recommendation, or a guarantee of profit or loss.
         Options can expire worthless; you can lose more than your debit on short and undefined-risk structures.
-        <a href="/">Back to Convexa</a>
       </p>
-    </footer>
-  </main>
+    </div>
+  </footer>
+
+  <div class="modal-bg" id="positions-modal" hidden>
+    <div class="modal" role="dialog" aria-labelledby="pos-title">
+      <button type="button" class="icon-x" id="pos-close" aria-label="Close">×</button>
+      <h2 id="pos-title">Positions</h2>
+      <div class="tabs">
+        <button type="button" class="tab is-on" id="tab-open">Open (0)</button>
+        <button type="button" class="tab" id="tab-closed">Closed (0)</button>
+      </div>
+      <p class="pos-gain" id="pos-gain"></p>
+      <div id="pos-list" class="pos-list"></div>
+      <p class="pos-actions-label">Actions</p>
+      <div class="pos-actions">
+        <button type="button" class="btn-gold" id="pos-flip">Flip Positions</button>
+        <button type="button" class="btn-ghost" id="pos-reset-px">Reset Custom Prices</button>
+      </div>
+      <p class="pos-label">Pricing Mode</p>
+      <div class="seg">
+        <button type="button" class="seg-btn is-on" id="px-mid">Midpoint</button>
+        <button type="button" class="seg-btn" id="px-ba">Bid / Ask</button>
+      </div>
+      <div class="comm-row">
+        <label>Commissions
+          <input id="comm-trade" type="number" min="0" step="0.01" value="0" aria-label="Per trade">
+          <span>per trade</span>
+        </label>
+        <label>
+          <input id="comm-contract" type="number" min="0" step="0.01" value="0" aria-label="Per contract">
+          <span>per contract</span>
+        </label>
+      </div>
+      <label class="check"><input type="checkbox" id="comm-rt"> Round-trip</label>
+    </div>
+  </div>
+
+  <div class="popover" id="leg-pop" hidden></div>
+
+  <div class="modal-bg" id="hist-modal" hidden>
+    <div class="modal modal-wide" role="dialog" aria-labelledby="hist-title">
+      <button type="button" class="icon-x" id="hist-close" aria-label="Close">×</button>
+      <h2 id="hist-title">Price History</h2>
+      <p class="hist-status" id="hist-status">Building chart…</p>
+      <div class="hist-ranges" id="hist-ranges">
+        <button type="button" data-range="1d">1 Day</button>
+        <button type="button" class="is-on" data-range="5d">1 Week</button>
+        <button type="button" data-range="10d">2 Weeks</button>
+        <button type="button" data-range="1mo">1 Month</button>
+        <button type="button" data-range="3mo">3 Months</button>
+        <button type="button" data-range="1y">All Time</button>
+      </div>
+      <svg id="hist-strat" viewBox="0 0 640 160" role="img" aria-label="Model strategy value"></svg>
+      <p class="hist-sub">Underlying (QQQ)</p>
+      <svg id="hist-under" viewBox="0 0 640 160" role="img" aria-label="QQQ price history"></svg>
+    </div>
+  </div>
 
   <div id="status" class="status" hidden></div>
-
   <script type="module" src="/builder/app.js"></script>
 </body>
 </html>
