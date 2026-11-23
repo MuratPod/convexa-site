@@ -34,8 +34,9 @@ Convexa Cloudflare account:
 npx wrangler deploy
 ```
 
-`wrangler.jsonc` describes a Workers static-assets publish under the
-worker name `convexa-site`. Do not bind a custom domain in that step.
+`wrangler.jsonc` deploys Worker `convexa-site-ia`, which already serves
+the production route `convexa.today/*`. Do not add or change custom domains,
+DNS, or routes in that step.
 
 The live preview at https://convexa-site.convexa.workers.dev/ is a new
 Worker `convexa-site` that serves the same `public/` files from the R2
@@ -44,6 +45,22 @@ and this Cloudflare session has no Pages API scope). No custom domain
 is attached.
 
 Every commit message should include `[skip ci]`.
+
+## Options builder
+
+The public strategy builder lives at [`/builder`](https://convexa.today/builder/).
+It is a static page plus a Worker proxy:
+
+- `public/builder/` — UI, Black–Scholes–Merton and Bjerksund–Stensland 2002 pricing
+- `src/worker.js` — `/api/quote` and `/api/chain`, 60-second edge cache
+
+Quotes are delayed and pulled first from Cboe’s public delayed-options JSON,
+then from the delayed option-chain JSON used by Nasdaq.com pages. Neither
+source is a licensed redistributable market-data product. Do not treat this
+proxy as a commercial data feed; it is for education on this site only.
+A constant risk-free rate (4.1%) is used unless a later feed supplies one.
+
+Run the math checks with `npm test` (`node --test tests/pricing.test.js`).
 
 ## License
 

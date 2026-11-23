@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Options strategy builder — Convexa</title>
+  <meta name="description" content="Build an options strategy, see net debit or credit, max profit and loss, breakevens, chance of profit, greeks, and a P&amp;L table. Delayed quotes, estimates for education — not investment advice.">
+  <meta name="theme-color" content="#070B14">
+  <link rel="canonical" href="https://convexa.today/builder/">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://convexa.today/builder/">
+  <meta property="og:title" content="Options strategy builder — Convexa">
+  <meta property="og:description" content="Greeks, P&amp;L table and payoff curves for any US ticker. Delayed quotes. Education only.">
+  <meta property="og:image" content="https://convexa.today/assets/og.webp">
+  <meta name="twitter:card" content="summary_large_image">
+  <link rel="icon" href="/favicon.ico" sizes="any">
+  <link rel="icon" href="/assets/favicon.png" type="image/png" sizes="64x64">
+  <link rel="apple-touch-icon" href="/assets/favicon.png">
+  <link rel="stylesheet" href="/builder/builder.css">
+</head>
+<body>
+  <header class="top">
+    <div class="top-inner">
+      <a class="logo" href="/">
+        <span class="logo-mark" aria-hidden="true">C</span>
+        Convexa
+      </a>
+      <nav class="top-nav" aria-label="Site">
+        <a href="/">Home</a>
+        <a href="/builder/" aria-current="page">Builder</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="page">
+    <section class="hero-row">
+      <div>
+        <p class="eyebrow">Strategy builder</p>
+        <h1>See the trade before it moves.</h1>
+      </div>
+      <form class="ticker" id="ticker-form" autocomplete="off">
+        <label class="sr-only" for="ticker-input">Ticker</label>
+        <input id="ticker-input" name="symbol" type="text" maxlength="10" spellcheck="false" placeholder="Ticker — QQQ, AAPL…" inputmode="latin" autocapitalize="characters">
+        <button type="submit" class="btn-gold" id="ticker-go">Load</button>
+      </form>
+    </section>
+
+    <p class="quote-line" id="quote-line">
+      Enter a US-listed ticker to load a delayed option chain.
+    </p>
+
+    <section class="card templates-card" aria-labelledby="templates-h">
+      <div class="card-head">
+        <h2 id="templates-h">Strategy</h2>
+        <label class="expiry-label">
+          <span>Expiry</span>
+          <select id="expiry-select" disabled>
+            <option value="">—</option>
+          </select>
+        </label>
+      </div>
+      <div class="template-pills" id="template-pills" role="list"></div>
+    </section>
+
+    <section class="summary" id="summary" aria-live="polite">
+      <article class="sum-card"><p class="sum-label">Net debit / credit</p><p class="sum-value" id="sum-premium">—</p><p class="sum-sub" id="sum-premium-sub"></p></article>
+      <article class="sum-card"><p class="sum-label">Max profit</p><p class="sum-value up" id="sum-maxp">—</p></article>
+      <article class="sum-card"><p class="sum-label">Max loss</p><p class="sum-value down" id="sum-maxl">—</p></article>
+      <article class="sum-card"><p class="sum-label">Breakevens</p><p class="sum-value" id="sum-be">—</p></article>
+      <article class="sum-card"><p class="sum-label">Chance of profit</p><p class="sum-value gold" id="sum-cop">—</p><p class="sum-sub">At expiry, risk-neutral</p></article>
+    </section>
+
+    <section class="greeks" id="greeks" aria-label="Net position greeks">
+      <div class="gk"><span>Delta</span><strong id="gk-delta">—</strong></div>
+      <div class="gk"><span>Gamma</span><strong id="gk-gamma">—</strong></div>
+      <div class="gk"><span>Theta / day</span><strong id="gk-theta">—</strong></div>
+      <div class="gk"><span>Vega / 1 vol</span><strong id="gk-vega">—</strong></div>
+      <div class="gk"><span>Rho / 1%</span><strong id="gk-rho">—</strong></div>
+    </section>
+
+    <section class="card chart-card">
+      <div class="card-head">
+        <h2>P&amp;L</h2>
+        <div class="seg" role="radiogroup" aria-label="Display mode">
+          <button type="button" class="seg-btn is-on" data-display="usd" aria-pressed="true">$</button>
+          <button type="button" class="seg-btn" data-display="pct" aria-pressed="false">%</button>
+          <button type="button" class="seg-btn" data-display="risk" aria-pressed="false">% risk</button>
+        </div>
+      </div>
+      <div class="chart-wrap">
+        <svg id="pnl-chart" viewBox="0 0 800 340" role="img" aria-label="P&amp;L against underlying price"></svg>
+        <div class="chart-legend" id="chart-legend">
+          <span><i class="swatch today"></i> Today</span>
+          <span><i class="swatch selected"></i> Selected date</span>
+          <span><i class="swatch expiry"></i> Expiry</span>
+        </div>
+      </div>
+      <div class="sliders">
+        <label>
+          <span>Date <strong id="date-label">Today</strong></span>
+          <input type="range" id="date-slider" min="0" max="0" value="0" disabled>
+        </label>
+        <label>
+          <span>IV shift <strong id="iv-label">0 vol pts</strong></span>
+          <input type="range" id="iv-slider" min="-20" max="20" step="0.5" value="0">
+        </label>
+        <label>
+          <span>Price range <strong id="range-label">±15%</strong></span>
+          <input type="range" id="range-slider" min="5" max="50" step="1" value="15">
+        </label>
+      </div>
+    </section>
+
+    <section class="card table-card">
+      <div class="card-head">
+        <h2>P&amp;L table</h2>
+        <p class="card-note">Rows are underlying prices; columns are dates through expiry. ±1 / 3 / 5% are always included.</p>
+      </div>
+      <div class="table-scroll" id="pnl-table-wrap">
+        <p class="empty-hint">Load a ticker and pick a strategy to fill the table.</p>
+      </div>
+    </section>
+
+    <section class="card legs-card">
+      <div class="card-head">
+        <h2>Legs</h2>
+        <button type="button" class="btn-ghost" id="add-leg">Add leg</button>
+      </div>
+      <div id="legs-list" class="legs-list">
+        <p class="empty-hint">No legs yet.</p>
+      </div>
+    </section>
+
+    <section class="card chain-card">
+      <div class="card-head">
+        <h2>Option chain</h2>
+        <p class="card-note" id="chain-note">Delayed mid, bid / ask, implied vol, open interest.</p>
+      </div>
+      <div class="table-scroll" id="chain-wrap">
+        <p class="empty-hint">The chain appears after you load a ticker.</p>
+      </div>
+    </section>
+
+    <footer class="disclaimer">
+      <p>
+        Quotes are delayed (typically about 15 minutes) and come from public exchange pages, not a licensed real-time feed.
+        Prices, implied volatilities, greeks, probabilities and P&amp;L figures are model estimates for education only.
+        They are not investment advice, a recommendation, or a guarantee of profit or loss.
+        Options can expire worthless; you can lose more than your debit on short and undefined-risk structures.
+        <a href="/">Back to Convexa</a>
+      </p>
+    </footer>
+  </main>
+
+  <div id="status" class="status" hidden></div>
+
+  <script type="module" src="/builder/app.js"></script>
+</body>
+</html>
