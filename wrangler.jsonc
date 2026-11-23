@@ -1,7 +1,17 @@
 {
-  "name": "convexa-site",
+  "name": "convexa-site-ia",
+  "account_id": "a0a47878efc6663fd0f6238275c9462b",
   "compatibility_date": "2026-11-20",
+  "main": "src/worker.js",
   "assets": {
-    "directory": "./public"
+    "directory": "./public",
+    "binding": "ASSETS",
+    "run_worker_first": ["/api/*"]
+  },
+  "observability": {
+    "enabled": true,
+    "traces": {
+      "enabled": true
+    }
   }
 }
