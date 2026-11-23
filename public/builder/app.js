@@ -1358,22 +1358,19 @@ function heat(v, maxAbs) {
 function renderSliders(a, { keepInput = false } = {}) {
   const last = lastExpiryIso();
   const end = last ? expiryCloseUtc(last) : Date.now();
-  const stops = dateStops();
   const sl = $("date-slider");
   const active = keepInput ? document.activeElement : null;
   const dateRow = $("date-row");
   if (dateRow) dateRow.hidden = state.view === "table";
+  const now = Date.now();
+  const span = Math.max(1, end - now);
   sl.min = "0";
-  sl.max = String(Math.max(0, stops.length - 1));
-  sl.disabled = stops.length < 2;
+  sl.max = "1000";
+  sl.step = "1";
+  sl.disabled = end <= now;
   if (active !== sl) {
-    let idx = 0, best = Infinity;
-    const want = state.dateMs || Date.now();
-    for (let i = 0; i < stops.length; i++) {
-      const d = Math.abs(stops[i] - want);
-      if (d < best) { best = d; idx = i; }
-    }
-    sl.value = String(idx);
+    const want = state.dateMs || now;
+    sl.value = String(Math.round(clamp((want - now) / span, 0, 1) * 1000));
   }
   const t = state.dateMs || Date.now();
   const daysRem = Math.max(0, Math.round((end - t) / 86400000));
@@ -1660,12 +1657,9 @@ function openLegPop(ev, id) {
   qtyInput.addEventListener("keydown", (e) => {
     if (e.key === "Enter") {
       e.preventDefault();
-      const before = signedQtyOf(leg);
       commitQty();
-      qtyInput.blur();
-      if (signedQtyOf(leg) !== before || parseSignedQty(qtyInput.value) != null) {
-        if (!qtyInput.classList.contains("is-bad")) done();
-      }
+      if (qtyInput.classList.contains("is-bad")) return;
+      done();
     }
     if (e.key === "Escape") { qtyInput.value = String(signedQtyOf(leg)); qtyInput.blur(); }
   });
@@ -1913,9 +1907,11 @@ function bind() {
   };
   $("date-slider").oninput = () => {
     state.liveFast = true;
-    const stops = dateStops();
-    const idx = Number($("date-slider").value);
-    state.dateMs = stops[idx] || state.dateMs;
+    const last = lastExpiryIso();
+    const end = last ? expiryCloseUtc(last) : Date.now();
+    const now = Date.now();
+    const frac = clamp(Number($("date-slider").value) / 1000, 0, 1);
+    state.dateMs = now + frac * Math.max(0, end - now);
     scheduleRender({ sliders: true, view: true });
   };
   $("range-slider").oninput = () => {
