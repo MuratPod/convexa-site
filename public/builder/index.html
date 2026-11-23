@@ -79,12 +79,14 @@
     </div>
 
     <div class="view-panel" id="view-panel">
-      <div class="graph-wrap" id="graph-wrap">
+      <div class="loading-msg" id="loading-msg">Loading delayed QQQ quotes…</div>
+      <div class="graph-wrap" id="graph-wrap" hidden>
         <svg id="pnl-chart" viewBox="0 0 760 270" role="img" aria-label="Strategy value against QQQ price"></svg>
         <div class="graph-hover" id="graph-hover" hidden></div>
       </div>
       <div class="table-wrap" id="table-wrap" hidden></div>
     </div>
+    <noscript><p class="loading-msg">This builder needs JavaScript to load delayed QQQ quotes.</p></noscript>
 
     <div class="slider-row date-row">
       <span class="slider-label">Date: <strong id="date-label">—</strong></span>

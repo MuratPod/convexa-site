@@ -95,6 +95,28 @@ function toast(msg, ms = 4000) {
   toast._t = setTimeout(() => { el.hidden = true; }, ms);
 }
 
+const TWO_EXPIRY = new Set([
+  "calendar-call-spread", "calendar-put-spread",
+  "diagonal-call-spread", "diagonal-put-spread",
+  "double-diagonal",
+]);
+
+function setLoading(on, errorText) {
+  const panel = $("view-panel");
+  const msg = $("loading-msg");
+  if (panel) panel.classList.toggle("is-loading", Boolean(on) && !errorText);
+  if (!msg) return;
+  if (errorText) {
+    msg.hidden = false;
+    msg.classList.add("is-error");
+    msg.textContent = errorText;
+    return;
+  }
+  msg.classList.remove("is-error");
+  msg.textContent = "Loading delayed QQQ quotes…";
+  msg.hidden = !on;
+}
+
 function isTradingDay(iso) {
   const d = new Date(iso + "T12:00:00-05:00");
   const wd = d.getUTCDay();
@@ -884,6 +906,7 @@ function renderToggles() {
 
 function renderAll() {
   if (!state.quote) return;
+  setLoading(false);
   setTitle();
   renderQuote();
   renderBuildMenu();
@@ -905,8 +928,10 @@ async function applyTemplate(slug, expiry) {
   let exp = expiry || state.activeExpiry || expiryNearDays(uniqueExpiries(chainOf()), 30);
   if (exp) await ensureExpiries([exp]);
   // Calendars need a second expiry — fetch a later one too.
-  const later = (uniqueExpiries(chainOf()) || []).find((e) => e > exp) || exp;
-  if (later && later !== exp) await ensureExpiries([later]);
+  if (TWO_EXPIRY.has(id)) {
+    const later = (uniqueExpiries(chainOf()) || []).find((e) => e > exp) || exp;
+    if (later && later !== exp) await ensureExpiries([later]);
+  }
   const chain = { ...chainOf(), price: spotNow() };
   let legs = buildTemplate(id, { chain, spot: spotNow(), expiry: exp, style: styleOf() });
   if (!legs.length) {
@@ -1293,15 +1318,20 @@ async function bootFromUrl(isPop) {
 
 async function start() {
   bind();
+  setLoading(true);
   try {
     if (!localStorage.getItem(NOTICE_KEY)) $("notice-bar").hidden = false;
   } catch { $("notice-bar").hidden = false; }
+  setTitle();
   try {
     await loadBase();
     renderQuote();
     await bootFromUrl(false);
+    setLoading(false);
   } catch (err) {
-    toast("Could not load delayed QQQ quotes. " + (err && err.message ? err.message : "Try again shortly."));
+    const text = "Could not load delayed QQQ quotes. " + (err && err.message ? err.message : "Try again shortly.");
+    setLoading(false, text);
+    toast(text);
   }
 }
 

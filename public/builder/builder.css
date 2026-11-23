@@ -216,7 +216,15 @@ a:hover { text-decoration: underline; }
 }
 .stats-arrow:hover { color: var(--gold-2); }
 
+.loading-msg {
+  position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+  color: var(--muted); font-size: 14px; font-weight: 650; text-align: center; padding: 16px;
+  z-index: 2;
+}
+.loading-msg.is-error { color: var(--gold-2); }
+.view-panel.is-loading .graph-wrap, .view-panel.is-loading .table-wrap { opacity: 0.35; }
 .view-panel {
+
   background: #0a101c; border: 1px solid var(--line); border-radius: 10px;
   height: 272px; margin-bottom: 12px; position: relative; overflow: hidden;
 }
