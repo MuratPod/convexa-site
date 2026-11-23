@@ -8,6 +8,8 @@
  */
 
 const CACHE_TTL = 60;
+const SWR_TTL = 300;
+const STORE_TTL = 86400;
 const UA = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36";
 const EUROPEAN = new Set([
   "SPX", "XSP", "NDX", "RUT", "VIX", "DJX", "OEX", "XEO", "MXEA", "MXEF",
@@ -16,7 +18,9 @@ const EUROPEAN = new Set([
 
 const jsonHead = {
   "content-type": "application/json; charset=utf-8",
-  "cache-control": `public, max-age=${CACHE_TTL}`,
+  "cache-control": `public, max-age=${CACHE_TTL}, s-maxage=${CACHE_TTL}, stale-while-revalidate=${SWR_TTL}, stale-if-error=86400`,
+  "cdn-cache-control": `public, max-age=${CACHE_TTL}, stale-while-revalidate=${SWR_TTL}, stale-if-error=86400`,
+  "cloudflare-cdn-cache-control": `public, max-age=${CACHE_TTL}, stale-while-revalidate=${SWR_TTL}, stale-if-error=86400`,
   "access-control-allow-origin": "https://convexa.today",
 };
 
@@ -222,6 +226,18 @@ async function nasdaqGet(path, timeoutMs = 12000) {
 }
 
 async function detectAssetClass(sym) {
+  // This public builder is QQQ-only; skip the three-way asset-class probe.
+  if (sym === "QQQ") {
+    try {
+      const j = await nasdaqGet(`/api/quote/${encodeURIComponent(sym)}/info?assetclass=etf`);
+      const code = j && j.status && j.status.rCode;
+      if (j && j.data && j.data.symbol && (code == null || code === 200 || code === 0)) {
+        return { ac: "etf", info: j.data };
+      }
+    } catch (err) {
+      console.warn("nasdaq_ac_fail", "etf", String(err && err.message ? err.message : err));
+    }
+  }
   const tries = await Promise.all(ASSET_CLASSES.map(async (ac) => {
     try {
       const j = await nasdaqGet(`/api/quote/${encodeURIComponent(sym)}/info?assetclass=${ac}`);
@@ -360,8 +376,11 @@ async function tryNasdaq(sym, expiry) {
   ]);
   const chain = parseNasdaqChain(chainJson, sym, expiry);
   let options = chain.options;
-  const want = expiry || (chain.expirations && chain.expirations[0]);
-  if (want) options = options.filter((o) => o.expiry === want);
+  if (expiry) {
+    options = options.filter((o) => o.expiry === expiry);
+  } else {
+    options = preferDefaultExpiries({ ...chain, options });
+  }
   return {
     symbol: infoPart.symbol,
     name: infoPart.name,
@@ -655,7 +674,130 @@ async function loadChain(sym, expiry) {
   if (expiry && picked.options && picked.options.length) {
     picked.options = picked.options.filter((o) => o.expiry === expiry);
   }
+  // Default (no expiry) payload: keep the near-30-day book so the first
+  // page load does not need a second 5–6s chain request.
+  if (!expiry) {
+    picked.options = preferDefaultExpiries(picked);
+    const have = new Set((picked.options || []).map((o) => o.expiry));
+    const want = expiryNearDays(picked.expirations || [], 30);
+    if (want && !have.has(want)) {
+      const extra = await firstUseful([
+        tryYahoo(sym, want),
+        tryNasdaq(sym, want),
+      ], (data) => data && data.options && data.options.length);
+      if (extra && extra.options) {
+        picked.options = (picked.options || []).concat(extra.options.filter((o) => o.expiry === want));
+        if (extra.price) picked.price = extra.price;
+      }
+    }
+  }
   return picked;
+}
+
+
+function expiryNearDays(expiries, days = 30, now = Date.now()) {
+  if (!expiries || !expiries.length) return null;
+  const target = now + days * 86400000;
+  let best = expiries[0];
+  let bestD = Infinity;
+  for (const e of expiries) {
+    const ts = Date.parse(e + "T16:00:00-05:00");
+    if (!Number.isFinite(ts)) continue;
+    const d = Math.abs(ts - target);
+    if (d < bestD) { best = e; bestD = d; }
+  }
+  return best;
+}
+
+function preferDefaultExpiries(chain) {
+  const options = (chain && chain.options) || [];
+  const expirations = (chain && chain.expirations) || [];
+  const have = [...new Set(options.map((o) => o.expiry).filter(Boolean))].sort();
+  const nearest = expirations[0] || have[0];
+  const around30 = expiryNearDays(expirations.length ? expirations : have, 30);
+  const keep = new Set([nearest, around30].filter(Boolean));
+  if (!keep.size) return options;
+  const trimmed = options.filter((o) => keep.has(o.expiry));
+  return trimmed.length ? trimmed : options;
+}
+
+function cacheKeyFor(url) {
+  return new Request(url.origin + url.pathname + url.search, { method: "GET" });
+}
+
+function cacheAgeSeconds(res) {
+  const raw = res.headers.get("x-cached-at") || res.headers.get("date");
+  const t = raw ? Date.parse(raw) : NaN;
+  if (!Number.isFinite(t)) return Infinity;
+  return Math.max(0, (Date.now() - t) / 1000);
+}
+
+function stampCached(res, age, kind) {
+  const headers = new Headers(res.headers);
+  const remain = Math.max(0, Math.round(CACHE_TTL - age));
+  const cc = `public, max-age=${remain}, s-maxage=${remain}, stale-while-revalidate=${SWR_TTL}, stale-if-error=86400`;
+  headers.set("cache-control", cc);
+  headers.set("cdn-cache-control", `public, max-age=${CACHE_TTL}, stale-while-revalidate=${SWR_TTL}, stale-if-error=86400`);
+  headers.set("cloudflare-cdn-cache-control", headers.get("cdn-cache-control"));
+  headers.set("age", String(Math.max(0, Math.floor(age))));
+  headers.set("x-builder-cache", kind);
+  return new Response(res.body, { status: res.status, statusText: res.statusText, headers });
+}
+
+async function toStoredResponse(response) {
+  const body = await response.arrayBuffer();
+  const headers = new Headers(response.headers);
+  headers.set("x-cached-at", new Date().toISOString());
+  // Keep the entry in caches.default past the public 60s TTL so we can
+  // serve stale-while-revalidate instead of making the visitor wait 5–6s.
+  headers.set("cache-control", `public, max-age=${STORE_TTL}`);
+  return new Response(body, { status: response.status, statusText: response.statusText, headers });
+}
+
+async function loadAndStore(url, cache, key) {
+  let response;
+  try {
+    response = await handleApi(url);
+  } catch (err) {
+    console.error("api_error", String(err && err.message ? err.message : err));
+    response = fail(502, "Upstream quotes are unavailable right now.");
+  }
+  if (response.status === 200) {
+    try {
+      const stored = await toStoredResponse(response);
+      await cache.put(key, stored.clone());
+      return stampCached(stored, 0, "miss");
+    } catch (err) {
+      console.warn("cache_put_fail", String(err && err.message ? err.message : err));
+    }
+  }
+  return response;
+}
+
+async function serveCachedApi(url, ctx) {
+  const cache = caches.default;
+  const key = cacheKeyFor(url);
+  let hit = null;
+  try { hit = await cache.match(key); } catch (err) {
+    console.warn("cache_match_fail", String(err && err.message ? err.message : err));
+  }
+  const age = hit ? cacheAgeSeconds(hit) : Infinity;
+  if (hit && age < CACHE_TTL) {
+    return stampCached(hit, age, "hit");
+  }
+  if (hit && age < CACHE_TTL + SWR_TTL) {
+    if (ctx && ctx.waitUntil) {
+      ctx.waitUntil(loadAndStore(url, cache, key).catch((err) => {
+        console.warn("swr_refresh_fail", String(err && err.message ? err.message : err));
+      }));
+    }
+    return stampCached(hit, age, "swr");
+  }
+  const fresh = await loadAndStore(url, cache, key);
+  if ((fresh.status >= 500 || fresh.status === 404) && hit) {
+    return stampCached(hit, age, "stale-if-error");
+  }
+  return fresh;
 }
 
 export default {
@@ -675,25 +817,15 @@ export default {
     }
 
     if (url.pathname.startsWith("/api/")) {
-      const cache = caches.default;
-      const cacheKey = new Request(url.toString(), { method: "GET" });
       const isHealth = url.pathname.replace(/\/+$/, "") === "/api/health";
-      if (!isHealth) {
-        const hit = await cache.match(cacheKey);
-        if (hit) return hit;
+      if (isHealth) {
+        try { return await handleApi(url); }
+        catch (err) {
+          console.error("api_error", String(err && err.message ? err.message : err));
+          return fail(502, "Upstream quotes are unavailable right now.");
+        }
       }
-
-      let response;
-      try {
-        response = await handleApi(url);
-      } catch (err) {
-        response = fail(502, "Upstream quotes are unavailable right now.");
-        console.error("api_error", String(err && err.message ? err.message : err));
-      }
-      if (!isHealth && response.status === 200 && ctx && ctx.waitUntil) {
-        ctx.waitUntil(cache.put(cacheKey, response.clone()));
-      }
-      return response;
+      return serveCachedApi(url, ctx);
     }
 
     // Directory URL /builder → /builder/

@@ -56,7 +56,7 @@ string. It is a static page plus a Worker proxy:
 
 - `public/builder/` — UI, catalog, Black–Scholes–Merton and Bjerksund–Stensland 2002 pricing
 - `public/builder/data.js` — delayed public data provider (swap later if a Convexa delayed feed is approved)
-- `src/worker.js` — `/api/quote`, `/api/chain`, `/api/history`, 60-second edge cache, SPA routes under `/builder/`
+- `src/worker.js` — `/api/quote`, `/api/chain`, `/api/history`, 60-second edge cache with 5-minute stale-while-revalidate, SPA routes under `/builder/`
 
 Quotes are delayed ~15 minutes. The Worker tries Yahoo Finance’s public
 options API, Nasdaq.com’s delayed option-chain JSON, and Cboe’s delayed

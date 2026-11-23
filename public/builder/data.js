@@ -9,8 +9,21 @@
 const PREFIX = "/api";
 export const BUILDER_SYMBOL = "QQQ";
 
+function fetchTimeout(path, ms = 20000) {
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), ms);
+  return fetch(path, { headers: { accept: "application/json" }, signal: ctrl.signal })
+    .finally(() => clearTimeout(timer));
+}
+
 async function request(path) {
-  const res = await fetch(path, { headers: { accept: "application/json" } });
+  let res;
+  try {
+    res = await fetchTimeout(path, 20000);
+  } catch (err) {
+    const aborted = err && (err.name === "AbortError" || /abort/i.test(String(err.message || err)));
+    throw new Error(aborted ? "Delayed quotes took too long to load. Try again shortly." : (err && err.message) || "Network error");
+  }
   const text = await res.text();
   let data = null;
   try { data = text ? JSON.parse(text) : null; } catch { data = { error: text.slice(0, 200) }; }
