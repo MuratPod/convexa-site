@@ -287,7 +287,7 @@ function renderExpirySelect() {
     : `<option value="">—</option>`;
 }
 
-function applyTemplate(id) {
+async function applyTemplate(id) {
   state.template = id;
   if (id === "custom") {
     renderTemplates();
@@ -305,6 +305,11 @@ function applyTemplate(id) {
     expiry: state.expiry,
     style: state.quote.style || state.style,
   });
+  try {
+    await ensureExpiryOptions(state.symbol, state.legs.map((l) => l.expiry));
+  } catch (err) {
+    toast(err.message || "Could not load every expiration in this strategy.");
+  }
   fillLegIvs();
   renderTemplates();
   renderAll();
@@ -731,6 +736,37 @@ function pushUrl() {
   history.replaceState(null, "", url);
 }
 
+function mergeChain(data) {
+  if (!data) return;
+  if (!state.chain) {
+    state.chain = data;
+    return;
+  }
+  const seen = new Set((state.chain.options || []).map((o) => `${o.expiry}|${o.type}|${o.strike}`));
+  for (const o of data.options || []) {
+    const key = `${o.expiry}|${o.type}|${o.strike}`;
+    if (!seen.has(key)) {
+      state.chain.options.push(o);
+      seen.add(key);
+    }
+  }
+  const exps = new Set([...(state.chain.expirations || []), ...(data.expirations || [])]);
+  state.chain.expirations = [...exps].sort();
+  for (const k of ["price", "change", "changePct", "asOf", "source", "style", "yield", "rate", "ivAtm", "name", "symbol"]) {
+    if (data[k] != null) state.chain[k] = data[k];
+  }
+}
+
+async function ensureExpiryOptions(ticker, expiries) {
+  const have = new Set((state.chain?.options || []).map((o) => o.expiry));
+  const need = [...new Set((expiries || []).filter(Boolean))].filter((e) => !have.has(e));
+  if (!need.length) return;
+  const packs = await Promise.all(
+    need.map((e) => api(`/api/chain?symbol=${encodeURIComponent(ticker)}&expiry=${encodeURIComponent(e)}`)),
+  );
+  for (const pack of packs) mergeChain(pack);
+}
+
 async function loadSymbol(sym, { keepLegs = false } = {}) {
   const ticker = String(sym || "").trim().toUpperCase();
   if (!ticker) return;
@@ -759,11 +795,14 @@ async function loadSymbol(sym, { keepLegs = false } = {}) {
     if (!state.expiry || !exps.includes(state.expiry)) {
       state.expiry = exps[0] || null;
     }
+    const needed = [state.expiry];
+    if (keepLegs) needed.push(...state.legs.map((l) => l.expiry));
+    await ensureExpiryOptions(ticker, needed);
     if (!keepLegs) {
       if (state.legs.length && state.template === "custom") {
         fillLegIvs();
       } else {
-        applyTemplate(state.template || "iron_condor");
+        await applyTemplate(state.template || "iron_condor");
         toast(`${data.symbol} loaded · ${data.source} delayed quotes`);
         return;
       }
@@ -785,9 +824,14 @@ function bind() {
     ev.preventDefault();
     loadSymbol($("ticker-input").value, { keepLegs: false });
   });
-  $("expiry-select").addEventListener("change", (ev) => {
+  $("expiry-select").addEventListener("change", async (ev) => {
     state.expiry = ev.target.value;
-    if (state.template && state.template !== "custom") applyTemplate(state.template);
+    try {
+      await ensureExpiryOptions(state.symbol, [state.expiry]);
+    } catch (err) {
+      toast(err.message || "Could not load that expiration.");
+    }
+    if (state.template && state.template !== "custom") await applyTemplate(state.template);
     else {
       renderAll();
       pushUrl();

@@ -54,11 +54,15 @@ It is a static page plus a Worker proxy:
 - `public/builder/` — UI, Black–Scholes–Merton and Bjerksund–Stensland 2002 pricing
 - `src/worker.js` — `/api/quote` and `/api/chain`, 60-second edge cache
 
-Quotes are delayed and pulled first from Cboe’s public delayed-options JSON,
-then from the delayed option-chain JSON used by Nasdaq.com pages. Neither
-source is a licensed redistributable market-data product. Do not treat this
-proxy as a commercial data feed; it is for education on this site only.
-A constant risk-free rate (4.1%) is used unless a later feed supplies one.
+Quotes are delayed ~15 minutes. The Worker tries Yahoo Finance’s public
+options API, Nasdaq.com’s delayed option-chain JSON, and Cboe’s delayed
+options JSON, and uses the first source that responds. From the Cloudflare
+edge, Nasdaq is currently the reliable source; Yahoo often requires a
+cookie+crumb session and may rate-limit shared Worker IPs; Cboe is usually
+blocked by bot protection. None of these is a licensed redistributable
+market-data product. Do not treat this proxy as a commercial data feed; it
+is for education on this site only. A constant risk-free rate (4.1%) is used
+unless a later feed supplies one.
 
 Run the math checks with `npm test` (`node --test tests/pricing.test.js`).
 
