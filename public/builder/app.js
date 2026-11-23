@@ -394,10 +394,10 @@ function analytics() {
   const legs = scaledLegs();
   const spot = spotNow();
   const now = Date.now();
-  const tCop = state.dateMs || now;
+  const tSel = selectedTime();
   const summary = summarizePayoff(legs, { spot, r: rate(), q: yieldQ(), timeMs: now, ivShift: 0 });
-  const { p } = chanceOfProfit(legs, { spot, r: rate(), q: yieldQ(), timeMs: tCop, ivShift: 0 });
-  const greeks = netGreeks(legs, { spot, timeMs: now, r: rate(), q: yieldQ(), ivShift: 0 });
+  const { p } = chanceOfProfit(legs, { spot, r: rate(), q: yieldQ(), timeMs: tSel, ivShift: 0 });
+  const greeks = netGreeks(legs, { spot, timeMs: tSel, r: rate(), q: yieldQ(), ivShift: 0 });
   const fee = feesFor(openLegs());
   if (fee) {
     if (Number.isFinite(summary.maxProfit)) summary.maxProfit -= fee;
@@ -535,10 +535,11 @@ function prefetchExpiries() {
 
 function selectedTime() {
   const last = lastExpiryIso();
-  if (!last) return Date.now();
+  const now = Date.now();
+  if (!last) return now;
   const end = expiryCloseUtc(last);
-  if (!state.dateMs) return end;
-  return clamp(state.dateMs, Date.now(), end);
+  const t = state.dateMs || now;
+  return clamp(t, now, end);
 }
 
 function isAtExpiry(timeMs) {
@@ -656,7 +657,7 @@ function commitRender(f) {
     return;
   }
   const needA = f.stats || f.view;
-  const a = f.stats ? analytics() : (needA ? (state.lastAnalytics || analytics()) : null);
+  const a = needA ? analytics() : null;
   if (f.title) setTitle();
   if (f.sliders && a) renderSliders(a, { keepInput: true });
   if (f.stats && a) renderStats(a);
@@ -1120,15 +1121,17 @@ function renderGraph(a, opts) {
       width: 1.4,
       pts: xs.map((x) => [x, pnlAt(x, tMid, legs)]),
     });
-    series.push({
-      id: "selected",
-      label: `${etDate(tSel, { weekday: "short", month: "short", day: "numeric" })} (${daysLeft(tSel)}d)`,
-      color: "#f4f6fb",
-      dash: null,
-      width: 2.0,
-      pts: xs.map((x) => [x, pnlAt(x, tSel, legs)]),
-    });
   }
+  // Always draw the selected-date curve, including at expiry, so it visibly
+  // coincides with the dotted expiration payoff at the right end of DATE.
+  series.push({
+    id: "selected",
+    label: `${etDate(tSel, { weekday: "short", month: "short", day: "numeric" })} (${daysLeft(tSel)}d)`,
+    color: "#f4f6fb",
+    dash: null,
+    width: 2.5,
+    pts: offExpiry ? xs.map((x) => [x, pnlAt(x, tSel, legs)]) : expiryPts,
+  });
   const other = otherScaledLegs();
   if (other) {
     const tPrev = offExpiry ? tSel : tExp;
@@ -1231,7 +1234,7 @@ function renderGraph(a, opts) {
     ${yTicks.map((v) => `<line x1="${pad.l}" x2="${W - pad.r}" y1="${Y(v)}" y2="${Y(v)}" stroke="#1a2438" /><text x="${pad.l - 6}" y="${Y(v) + 3}" fill="#8b96ad" font-size="10" text-anchor="end">${axisMoney(v)}</text>`).join("")}
     ${xTicks.map((v) => `<text x="${X(v)}" y="${H - 8}" fill="#8b96ad" font-size="10" text-anchor="middle">${fmtPx(v, 0)}</text>`).join("")}
     <path data-area="1" d="${area}" fill="url(#pnlFill)" />
-    <path data-bell="1" d="${bell}" fill="none" stroke="rgba(212,175,55,0.35)" stroke-width="1.2"/>
+    <path data-bell="1" d="${bell} L${X(xMax).toFixed(2)},${zeroY.toFixed(2)} L${X(xMin).toFixed(2)},${zeroY.toFixed(2)} Z" fill="rgba(96,140,196,0.16)" stroke="none"/>
     <line data-zero="1" x1="${pad.l}" x2="${W - pad.r}" y1="${zeroY}" y2="${zeroY}" stroke="#8b96ad" stroke-width="1"/>
     <line data-spot="1" x1="${X(spot)}" x2="${X(spot)}" y1="${pad.t}" y2="${H - pad.b}" stroke="#d4af37" stroke-dasharray="4 3"/>
     <g data-target="1">${(Number(state.targetPx) > 0 && state.targetPx >= xMin && state.targetPx <= xMax) ? `<line x1="${X(state.targetPx)}" x2="${X(state.targetPx)}" y1="${pad.t}" y2="${H - pad.b}" stroke="#f5a623" stroke-width="1.6"/><text x="${X(state.targetPx)}" y="${pad.t + 22}" fill="#f5a623" font-size="9" text-anchor="middle">Target ${fmtPx(state.targetPx, 2)}</text>` : ""}</g>
@@ -1239,7 +1242,7 @@ function renderGraph(a, opts) {
     ${series.map((s) => `<path data-series="${s.id}" d="${pathOf(s.pts)}" fill="none" stroke="${s.color}" stroke-width="${s.width || 1.6}"${s.dash ? ` stroke-dasharray="${s.dash}"` : ""}/>`).join("")}
     <g data-legend="1" font-size="11" fill="#8b96ad">
       ${series.map((s, i) => `<g transform="translate(${pad.l + i * 130}, 14)"><line x1="0" x2="16" y1="-3" y2="-3" stroke="${s.color}" stroke-width="2"${s.dash ? ` stroke-dasharray="${s.dash}"` : ""}/><text x="20" y="0">${s.label}</text></g>`).join("")}
-      <g transform="translate(${pad.l + series.length * 130}, 14)"><polygon points="0,-6 8,2 0,2" fill="rgba(212,175,55,0.55)"/><text x="14" y="0">Probability</text></g>
+      <g transform="translate(${pad.l + series.length * 130}, 14)"><polygon points="0,-6 8,2 0,2" fill="rgba(96,140,196,0.55)"/><text x="14" y="0">Probability</text></g>
       ${Number(state.targetPx) > 0 ? `<g transform="translate(${pad.l + (series.length + 1) * 130}, 14)"><line x1="0" x2="16" y1="-3" y2="-3" stroke="#f5a623" stroke-width="2"/><text x="20" y="0">Target ${fmtPx(state.targetPx, 2)}</text></g>` : ""}
     </g>
     <line id="hover-x" x1="0" x2="0" y1="${pad.t}" y2="${H - pad.b}" stroke="#ffc34a" stroke-dasharray="3 3" visibility="hidden"/>
@@ -1971,7 +1974,7 @@ function bind() {
     const now = Date.now();
     const frac = clamp(Number($("date-slider").value) / 1000, 0, 1);
     state.dateMs = now + frac * Math.max(0, end - now);
-    scheduleRender({ sliders: true, view: true });
+    scheduleRender({ sliders: true, view: true, stats: true });
   };
   $("range-slider").oninput = () => {
     state.liveFast = true;

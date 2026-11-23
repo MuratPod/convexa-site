@@ -54,6 +54,25 @@ async function setSlider(page, id, value) {
   }, { id, value });
 }
 
+function pathMeanDist(a, b) {
+  const parse = (d) => (String(d || "").match(/[ML]-?\d+\.?\d*,-?\d+\.?\d*/g) || [])
+    .map((p) => p.slice(1).split(",").map(Number));
+  const pa = parse(a);
+  const pb = parse(b);
+  const n = Math.min(pa.length, pb.length);
+  if (!n || Math.abs(pa.length - pb.length) > 2) return Infinity;
+  let sum = 0;
+  for (let i = 0; i < n; i++) sum += Math.hypot(pa[i][0] - pb[i][0], pa[i][1] - pb[i][1]);
+  return sum / n;
+}
+
+async function curvePaths(page) {
+  return page.evaluate(() => {
+    const d = (id) => document.querySelector(`#pnl-chart [data-series='${id}']`)?.getAttribute("d") || null;
+    return { selected: d("selected"), expiry: d("expiry"), mid: d("mid") };
+  });
+}
+
 function statMap(texts) {
   const out = {};
   for (let i = 0; i + 1 < texts.length; i += 2) out[texts[i]] = texts[i + 1];
@@ -116,6 +135,26 @@ async function runOnPage(page, engine, viewport) {
       `right="${right}" dashed=${dashed} labels=${labels.filter((t) => /\d+d/.test(t)).join(" | ")}`);
     mark("DATE drag: max profit unchanged (expiry-based)", maxSame,
       `before=${stats0["Max profit"]} after=${stats1["Max profit"]}`);
+
+    // Morph: solid selected path must change along the track and coincide with expiry at max.
+    const fracs = [0, 0.25, 0.5, 0.75, 1];
+    const snaps = [];
+    for (const f of fracs) {
+      await setSlider(page, "date-slider", Math.round(dateMax * f));
+      await nextFrames(page, 4);
+      const paths = await curvePaths(page);
+      const label = (await page.locator("#date-label").innerText()).trim();
+      snaps.push({ f, label, ...paths, dist: pathMeanDist(paths.selected, paths.expiry) });
+    }
+    const morphing = snaps.slice(0, 4).every((s, i) => i === 0 || pathMeanDist(s.selected, snaps[i - 1].selected) > 1);
+    const allHaveSel = snaps.every((s) => s.selected);
+    const converges = snaps[snaps.length - 1].dist <= 1.5;
+    mark("DATE morph: selected path changes at 0/25/50/75 and equals expiry at max",
+      morphing && allHaveSel && converges,
+      snaps.map((s) => `${Math.round(s.f * 100)}%:${s.label}:dExp=${Number.isFinite(s.dist) ? s.dist.toFixed(2) : "inf"}`).join(" | "));
+
+    await setSlider(page, "date-slider", mid);
+    await nextFrames(page, 3);
     await page.screenshot({ path: path.join(SHOTS, `${tag}-02-date.png`), fullPage: true });
 
     // Table: date slider hidden, 21 rows, columns independent of DATE, click is inert
