@@ -289,10 +289,14 @@ async function runOnPage(page, engine, viewport) {
     mark("Positions qty stepper updates stats live without closing the popover",
       popOpen && Number(qty) >= 2 && debit0 !== debit1 && /x2/.test(urlQty),
       `qty=${qty} ${debit0} -> ${debit1} url=${urlQty}`);
-    // skip 0: type 1 then decrement to -1
+    // skip 0: type 1 then decrement to -1 (blur commits without closing the popover)
     await page.locator("#qty-val").fill("1");
-    await page.locator("#qty-val").press("Enter");
+    await page.locator("#qty-val").evaluate((el) => { el.blur(); el.dispatchEvent(new Event("change", { bubbles: true })); });
     await nextFrames(page, 2);
+    if (!await page.locator("#leg-pop:not([hidden]) #qty-dec").count()) {
+      await page.locator("#pos-list [data-gear]").first().click();
+      await page.waitForSelector("#leg-pop:not([hidden]) #qty-dec");
+    }
     await page.locator("#qty-dec").click();
     await nextFrames(page, 3);
     const flipped = await page.locator("#qty-val").inputValue();

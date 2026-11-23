@@ -570,6 +570,26 @@ function occLabel(leg) {
   return `${qBit}${formatOcc(SYMBOL, leg.expiry, leg.type, leg.strike)}`;
 }
 
+function posLine(leg) {
+  const act = leg.side === "sell" ? "STO" : "BTO";
+  const short = leg.side === "sell";
+  if (leg.kind === "stock" || leg.type === "S") {
+    const q = Math.abs(Number(leg.qty) || 100);
+    const qBit = q !== 100 ? `${short ? "-" : ""}${q}× ` : "";
+    const px = entryPx(leg);
+    return `${act} ${qBit}QQQ${Number.isFinite(px) ? ` at $${fmtPx(px, 2)}` : ""}`;
+  }
+  const q = Math.abs(Number(leg.qty) || 1);
+  const qBit = q !== 1 ? `${short ? "-" : ""}${q}× ` : "";
+  const typ = (leg.type === "P" || leg.type === "put") ? "P" : "C";
+  const d = leg.expiry
+    ? etDate(Date.parse(leg.expiry + "T12:00:00-05:00"), { month: "numeric", day: "numeric", year: "2-digit" })
+    : "";
+  const px = entryPx(leg);
+  const at = Number.isFinite(px) ? ` at $${fmtPx(px, 2)}` : "";
+  return `${act} ${qBit}QQQ ${leg.strike}${typ} ${d}${at}`.replace(/\s+/g, " ").trim();
+}
+
 function pushUrl(replace = true) {
   const path = encodePath({ template: state.template, symbol: SYMBOL, legs: openLegs() });
   const url = path + (location.search || "");
@@ -1194,7 +1214,7 @@ function renderGraph(a) {
     if (!pill) { pill = document.createElement("div"); pill.className = "prob-pill"; wrap.appendChild(pill); }
     pill.hidden = false;
     pill.style.left = (hx / W) * r.width + "px";
-    pill.textContent = `${below.toFixed(0)}% below  ·  ${(100 - below).toFixed(0)}% above`;
+    pill.textContent = `${below.toFixed(0)}% / ${(100 - below).toFixed(0)}%`;
     state.hoverPx = x;
   };
   let hoverRaf = 0;
@@ -1516,7 +1536,7 @@ function renderPositions() {
     const cls = pnl > 0 ? "up" : pnl < 0 ? "dn" : "";
     return `<div class="pos-row" data-id="${l.id}">
       <button type="button" class="gear" data-gear="${l.id}" aria-label="Edit leg">⚙</button>
-      <div><div class="sym">${occLabel(l)}</div><div class="dir">${l.side === "sell" ? "STO" : "BTO"} · ${l.excluded ? "Excluded" : (l.closed ? "Closed" : "Open")}</div></div>
+      <div><div class="sym">${posLine(l)}</div><div class="dir">${l.side === "sell" ? "STO" : "BTO"} · ${l.excluded ? "Excluded" : (l.closed ? "Closed" : "Open")}${wideSpread(l) ? " · ⚠" : ""}</div></div>
       <div class="px">${fmtPx(entryPx(l), 2)}</div>
       <div class="px ${cls}">${formatMoney(pnl, { signed: true, decimals: 0 })}</div>
     </div>`;
@@ -1638,7 +1658,15 @@ function openLegPop(ev, id) {
     }
   };
   qtyInput.addEventListener("keydown", (e) => {
-    if (e.key === "Enter") { e.preventDefault(); commitQty(); qtyInput.blur(); }
+    if (e.key === "Enter") {
+      e.preventDefault();
+      const before = signedQtyOf(leg);
+      commitQty();
+      qtyInput.blur();
+      if (signedQtyOf(leg) !== before || parseSignedQty(qtyInput.value) != null) {
+        if (!qtyInput.classList.contains("is-bad")) done();
+      }
+    }
     if (e.key === "Escape") { qtyInput.value = String(signedQtyOf(leg)); qtyInput.blur(); }
   });
   qtyInput.addEventListener("blur", commitQty);
