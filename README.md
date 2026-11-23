@@ -49,10 +49,14 @@ Every commit message should include `[skip ci]`.
 ## Options builder
 
 The public strategy builder lives at [`/builder`](https://convexa.today/builder/).
-It is a static page plus a Worker proxy:
+It is limited to **QQQ** for now (the ticker cannot be changed; quote, chain
+and history APIs reject other symbols). Routes look like
+`/builder/<strategy>/QQQ/<legs>` and fall back to the first builder’s query
+string. It is a static page plus a Worker proxy:
 
-- `public/builder/` — UI, Black–Scholes–Merton and Bjerksund–Stensland 2002 pricing
-- `src/worker.js` — `/api/quote` and `/api/chain`, 60-second edge cache
+- `public/builder/` — UI, catalog, Black–Scholes–Merton and Bjerksund–Stensland 2002 pricing
+- `public/builder/data.js` — delayed public data provider (swap later if a Convexa delayed feed is approved)
+- `src/worker.js` — `/api/quote`, `/api/chain`, `/api/history`, 60-second edge cache, SPA routes under `/builder/`
 
 Quotes are delayed ~15 minutes. The Worker tries Yahoo Finance’s public
 options API, Nasdaq.com’s delayed option-chain JSON, and Cboe’s delayed
@@ -64,7 +68,7 @@ market-data product. Do not treat this proxy as a commercial data feed; it
 is for education on this site only. A constant risk-free rate (4.1%) is used
 unless a later feed supplies one.
 
-Run the math checks with `npm test` (`node --test tests/pricing.test.js`).
+Run the checks with `npm test` (`node --test tests/*.test.js`).
 
 ## License
 
