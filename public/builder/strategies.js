@@ -731,14 +731,14 @@ export function encodePath({ template, symbol, legs }) {
   const sym = "QQQ";
   const parts = (legs || []).filter((l) => !l.closed).map((l) => {
     const short = l.side === "sell";
-    const qty = Number(l.qty) || 1;
-    const qtyBit = qty !== 1 && !(l.kind === "stock" && qty === 100) ? String(qty) : "";
+    const qty = Math.abs(Number(l.qty) || 1);
+    const qtyBit = qty !== 1 && !(l.kind === "stock" && qty === 100) ? `x${qty}` : "";
     const rawPx = l.customPrice;
     const px = rawPx != null && rawPx !== "" && Number.isFinite(Number(rawPx)) ? `@${Number(rawPx)}` : "";
     if (l.kind === "stock" || l.type === "S") {
-      return `${short ? "-" : ""}${qtyBit}.${sym}${px}`;
+      return `${short ? "-" : ""}.${sym}${qtyBit}${px}`;
     }
-    return `${short ? "-" : ""}${qtyBit}.${formatOcc(l.symbol || sym, l.expiry, l.type, l.strike)}${px}`;
+    return `${short ? "-" : ""}.${formatOcc(l.symbol || sym, l.expiry, l.type, l.strike)}${qtyBit}${px}`;
   });
   const tail = parts.join(",");
   return tail ? `/builder/${slug}/${sym}/${tail}` : `/builder/${slug}/${sym}`;
@@ -784,13 +784,19 @@ export function parseBuilderPath(pathname) {
       if (Number.isFinite(n)) customPrice = n;
       token = token.slice(0, at);
     }
+    let qty = mm[2] ? Number(mm[2]) : null;
+    const xm = token.match(/^(.*?)(?:x(\d+))$/i);
+    if (xm) {
+      token = xm[1];
+      qty = Number(xm[2]) || qty;
+    }
     const occ = parseOcc(token);
     if (occ) {
       entries.push({
         kind: "option",
         type: occ.type,
         side,
-        qty: mm[2] ? Number(mm[2]) : 1,
+        qty: qty || 1,
         strike: occ.strike,
         expiry: occ.expiry,
         symbol: occ.symbol,
@@ -801,7 +807,7 @@ export function parseBuilderPath(pathname) {
         kind: "stock",
         type: "S",
         side,
-        qty: mm[2] ? Number(mm[2]) : 100,
+        qty: qty || 100,
         symbol: String(token).toUpperCase(),
         customPrice,
       });
@@ -837,7 +843,8 @@ export function decodeState(search, pathname) {
     expiry: p.get("e") || null,
     ivMult: Number(p.get("ivm") || 1) || 1,
     ivShift: Number(p.get("iv") || 0) || 0,
-    range: Number(p.get("rng") || 0.12) || 0.12,
+    range: p.has("rng") ? (Number(p.get("rng")) || 0.12) : null,
+    rangeFromUrl: p.has("rng"),
     display: p.get("d") || "usd",
     style: p.get("st") || "american",
     legs: fromPath && fromPath.entries && fromPath.entries.length ? fromPath.entries.map((e) => ({

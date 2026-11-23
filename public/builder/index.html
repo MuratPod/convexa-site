@@ -16,7 +16,7 @@
   <link rel="icon" href="/favicon.ico" sizes="any">
   <link rel="icon" href="/assets/favicon.png" type="image/png" sizes="64x64">
   <link rel="apple-touch-icon" href="/assets/favicon.png">
-  <link rel="stylesheet" href="/builder/builder.css?v=47daa2ae8c">
+  <link rel="stylesheet" href="/builder/builder.css?v=c02a7463c8">
 </head>
 <body>
   <div id="notice-bar" class="notice-bar" hidden>
@@ -88,7 +88,7 @@
     </div>
     <noscript><p class="loading-msg">This builder needs JavaScript to load delayed QQQ quotes.</p></noscript>
 
-    <div class="slider-row date-row">
+    <div class="slider-row date-row" id="date-row">
       <span class="slider-label">Date: <strong id="date-label">—</strong></span>
       <span class="slider-right" id="date-right"></span>
       <input type="range" id="date-slider" min="0" max="0" value="0" disabled>
@@ -98,7 +98,7 @@
         <span>Range: <strong id="range-label">±12%</strong>
           <button type="button" class="iv-reset" id="range-reset" hidden title="Reset range" aria-label="Reset range">↺</button>
         </span>
-        <input type="range" id="range-slider" min="1" max="84" step="0.1" value="12">
+        <input type="range" id="range-slider" min="1.1" max="98" step="0.1" value="12">
       </label>
       <button type="button" class="reset-range" id="target-btn" title="Set a target price" aria-label="Set a target price">◎</button>
       <label class="slider-block iv-block">
@@ -112,7 +112,7 @@
           </span>
         </span>
         <input type="range" id="iv-slider" min="10" max="300" step="1" value="100">
-        <span class="iv-ticks"><i>×1</i><i>×2</i><i>×3</i></span>
+        <span class="iv-ticks"><i style="left:0">0.1×</i><i style="left:31%">1×</i><i style="left:65.5%">2×</i><i style="left:100%">3×</i></span>
       </label>
     </div>
 
@@ -134,6 +134,10 @@
           <button type="button" data-greek="vega">Vega ν</button>
           <button type="button" data-greek="rho">Rho ρ</button>
         </div>
+      </div>
+      <div class="prev-toggle" id="prev-toggle" hidden>
+        <button type="button" id="btn-prev-curve">← Previous</button>
+        <button type="button" id="btn-curr-curve" class="is-on">→ Current</button>
       </div>
     </div>
   </main>
@@ -184,7 +188,7 @@
           <span>per contract</span>
         </label>
       </div>
-      <label class="check"><input type="checkbox" id="comm-rt"> Round-trip</label>
+      <label class="check"><input type="checkbox" id="comm-rt" checked> Round-trip</label>
     </div>
   </div>
 
@@ -227,6 +231,6 @@
   </div>
 
   <div id="status" class="status" hidden></div>
-  <script type="module" src="/builder/app.js?v=4413d54c83"></script>
+  <script type="module" src="/builder/app.js?v=121eb5be97"></script>
 </body>
 </html>
